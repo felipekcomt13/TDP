@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Supabase Connection</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #00ff00;
+    }
+    .result {
+      background: #000;
+      border: 2px solid #00ff00;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 5px;
+    }
+    .error {
+      border-color: #ff0000;
+      color: #ff0000;
+    }
+    .success {
+      border-color: #00ff00;
+      color: #00ff00;
+    }
+    button {
+      background: #00ff00;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #00cc00;
+    }
+    pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    h1 {
+      color: #00ff00;
+    }
+    .instruction {
+      background: #2a2a2a;
+      padding: 15px;
+      margin: 15px 0;
+      border-left: 4px solid #00ff00;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Test de Conexión a Supabase</h1>
+
+  <div class="instruction">
+    <h3>📋 Instrucciones:</h3>
+    <ol>
+      <li>Abre este archivo en tu navegador</li>
+      <li>Pega tu URL y ANON KEY de Supabase</li>
+      <li>Haz clic en "Probar Conexión"</li>
+      <li>Si da error, verifica que la ANON KEY sea la correcta (debe ser MUY larga)</li>
+    </ol>
+  </div>
+
+  <div style="margin: 20px 0;">
+    <label>
+      Supabase URL:<br>
+      <input type="text" id="url" value="https://idckvfiyloqlkjpknwnc.supabase.co"
+             style="width: 100%; padding: 10px; font-size: 14px;">
+    </label>
+  </div>
+
+  <div style="margin: 20px 0;">
+    <label>
+      Supabase ANON KEY (debe empezar con "eyJ..."):<br>
+      <textarea id="key" rows="4"
+                style="width: 100%; padding: 10px; font-size: 12px; font-family: monospace;"></textarea>
+    </label>
+  </div>
+
+  <button onclick="testConnection()">🚀 Probar Conexión</button>
+
+  <div id="result"></div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    window.testConnection = async function() {
+      const resultDiv = document.getElementById('result');
+      const url = document.getElementById('url').value.trim();
+      const key = document.getElementById('key').value.trim();
+
+      resultDiv.innerHTML = '<div class="result">⏳ Probando conexión...</div>';
+
+      // Validaciones básicas
+      if (!url || !key) {
+        resultDiv.innerHTML = `
+          <div class="result error">
+            <h3>❌ Error: Faltan datos</h3>
+            <p>Por favor completa ambos campos.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (!key.startsWith('eyJ')) {
+        resultDiv.innerHTML = `
+          <div class="result error">
+            <h3>⚠️ Advertencia: La ANON KEY parece incorrecta</h3>
+            <p>La ANON KEY debería empezar con "eyJ" (formato JWT).</p>
+            <p>La que ingresaste empieza con: <strong>${key.substring(0, 20)}...</strong></p>
+            <p><strong>ESTO PROBABLEMENTE CAUSA TU ERROR DE CORS</strong></p>
+            <hr>
+            <p>🔧 Para obtener la ANON KEY correcta:</p>
+            <ol>
+              <li>Ve a <a href="https://app.supabase.com" target="_blank" style="color: #00ff00;">app.supabase.com</a></li>
+              <li>Selecciona tu proyecto</li>
+              <li>Ve a Settings → API</li>
+              <li>Busca "Project API keys"</li>
+              <li>Copia el valor de <strong>"anon" "public"</strong> (NO "service_role")</li>
+              <li>Debería ser un texto muy largo que empieza con "eyJ"</li>
+            </ol>
+            <p>Intentando conectar de todas formas...</p>
+          </div>
+        `;
+      }
+
+      try {
+        // Crear cliente
+        const supabase = createClient(url, key);
+
+        // Test 1: Verificar conexión básica
+        const { data: testData, error: testError } = await supabase
+          .from('profiles')
+          .select('count')
+          .limit(1);
+
+        if (testError) {
+          throw new Error(`Error al conectar: ${testError.message}`);
+        }
+
+        // Test 2: Verificar autenticación actual
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Test 3: Intentar un UPDATE en reservas
+        const { data: reservas, error: reservasError } = await supabase
+          .from('reservas')
+          .select('id')
+          .limit(1);
+
+        let updateTestResult = '⏭️ Sin probar (no hay reservas)';
+        if (reservas && reservas.length > 0) {
+          const { error: updateError } = await supabase
+            .from('reservas')
+            .update({ estado: 'pendiente' })
+            .eq('id', reservas[0].id);
+
+          if (updateError) {
+            updateTestResult = `❌ Falló: ${updateError.message}`;
+          } else {
+            updateTestResult = '✅ UPDATE funciona correctamente';
+          }
+        }
+
+        // Mostrar resultado exitoso
+        resultDiv.innerHTML = `
+          <div class="result success">
+            <h3>✅ Conexión Exitosa</h3>
+            <pre><strong>URL:</strong> ${url}
+<strong>Usuario autenticado:</strong> ${user ? user.email : 'Ninguno (anónimo)'}
+<strong>Test de lectura (profiles):</strong> ✅ OK
+<strong>Test de UPDATE (reservas):</strong> ${updateTestResult}</pre>
+
+            <h4>🎯 Diagnóstico:</h4>
+            ${updateTestResult.includes('✅')
+              ? '<p>✅ La conexión funciona perfectamente. El problema debe estar en otro lado.</p>'
+              : '<p>⚠️ El UPDATE falla. Problema con RLS policies.</p>'}
+          </div>
+        `;
+
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="result error">
+            <h3>❌ Error de Conexión</h3>
+            <pre>${error.message}</pre>
+
+            <h4>💡 Posibles causas:</h4>
+            <ul>
+              <li><strong>ANON KEY incorrecta</strong> (causa más común de errores CORS)</li>
+              <li>URL incorrecta</li>
+              <li>Proyecto pausado o eliminado</li>
+              <li>Problema de red</li>
+            </ul>
+
+            <h4>🔧 Solución:</h4>
+            <ol>
+              <li>Ve a <a href="https://app.supabase.com" target="_blank" style="color: #ff6666;">app.supabase.com</a></li>
+              <li>Selecciona tu proyecto</li>
+              <li>Ve a <strong>Settings → API</strong></li>
+              <li>Copia la <strong>URL del proyecto</strong></li>
+              <li>Copia la clave <strong>"anon" "public"</strong> (debe empezar con "eyJ")</li>
+              <li>Actualiza tu archivo <strong>.env</strong> con estos valores</li>
+              <li>Reinicia el servidor de desarrollo (npm run dev)</li>
+            </ol>
+          </div>
+        `;
+      }
+    };
+  </script>
+</body>
+</html>
