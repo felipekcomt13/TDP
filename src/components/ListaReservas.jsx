@@ -3,6 +3,7 @@ import { useReservas } from '../context/ReservasContext';
 import { useAuth } from '../context/AuthContext';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { obtenerNombreCancha, calcularPrecioReserva, obtenerDesglosePrecio } from '../utils/preciosCalculator';
 
 const ListaReservas = () => {
   const { reservas, eliminarReserva, obtenerHorasEnRango, confirmarReserva, rechazarReserva } = useReservas();
@@ -161,7 +162,7 @@ const ListaReservas = () => {
             return (
               <div
                 key={reserva.id}
-                className={`bg-white border p-6 transition-all hover:shadow-md ${
+                className={`bg-white border p-4 md:p-6 transition-all hover:shadow-md ${
                   esPasada
                     ? 'border-gray-200 opacity-60'
                     : reserva.estado === 'pendiente'
@@ -169,10 +170,10 @@ const ListaReservas = () => {
                     : 'border-black'
                 }`}
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-4">
-                      <h3 className="text-2xl font-bold text-black tracking-tight">
+                <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                  <div className="flex-1 w-full">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
+                      <h3 className="text-xl md:text-2xl font-bold text-black tracking-tight">
                         {reserva.nombre}
                       </h3>
                       <span
@@ -188,6 +189,24 @@ const ListaReservas = () => {
 
                     <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                       <p>
+                        <span className="font-semibold">Cancha:</span>{' '}
+                        <span className="text-black font-bold">{obtenerNombreCancha(reserva.cancha || 'principal')}</span>
+                      </p>
+                      <p>
+                        <span className="font-semibold">Deporte:</span>{' '}
+                        <span className="text-black font-bold">{reserva.deporte === 'basket' ? 'Básquet' : 'Vóley'}</span>
+                      </p>
+                      <p>
+                        <span className="font-semibold">Precio:</span>{' '}
+                        <span className="text-black font-bold">
+                          S/ {calcularPrecioReserva(reserva.cancha || 'principal', reserva.hora, reserva.horaFin)}
+                          {reserva.horaFin && (() => {
+                            const desglose = obtenerDesglosePrecio(reserva.cancha || 'principal', reserva.hora, reserva.horaFin);
+                            return <span className="text-xs text-gray-600 font-normal ml-1">({desglose.numHoras}h)</span>;
+                          })()}
+                        </span>
+                      </p>
+                      <p>
                         <span className="font-semibold">Fecha:</span>{' '}
                         {formatearFecha(reserva.fecha)}
                       </p>
@@ -196,12 +215,9 @@ const ListaReservas = () => {
                         {reserva.horaFin ? (
                           <>
                             {reserva.hora} - {reserva.horaFin}
-                            <span className="ml-2 text-blue-700 font-semibold">
-                              ({obtenerHorasEnRango(reserva.hora, reserva.horaFin).length - 1} hora{obtenerHorasEnRango(reserva.hora, reserva.horaFin).length - 1 !== 1 ? 's' : ''})
-                            </span>
                           </>
                         ) : (
-                          <>{reserva.hora} (1 hora)</>
+                          <>{reserva.hora}</>
                         )}
                       </p>
                       {reserva.telefono && (
@@ -227,18 +243,18 @@ const ListaReservas = () => {
                     </div>
                   </div>
 
-                  <div className="ml-6 flex flex-col gap-2">
+                  <div className="w-full md:w-auto md:ml-6 flex flex-row md:flex-col gap-2">
                     {reserva.estado === 'pendiente' && (
                       <button
                         onClick={() => confirmarReserva(reserva.id)}
-                        className="px-4 py-2 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+                        className="flex-1 md:flex-initial px-4 py-2 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
                       >
                         Confirmar
                       </button>
                     )}
                     <button
                       onClick={() => confirmarEliminacion(reserva)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                      className="flex-1 md:flex-initial px-4 py-2 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
                     >
                       {reserva.estado === 'pendiente' ? 'Rechazar' : 'Eliminar'}
                     </button>
@@ -261,6 +277,16 @@ const ListaReservas = () => {
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Nombre</p>
                 <p className="font-semibold text-black">{reservaAEliminar.nombre}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Cancha</p>
+                  <p className="text-sm text-gray-700">{obtenerNombreCancha(reservaAEliminar.cancha || 'principal')}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Deporte</p>
+                  <p className="text-sm text-gray-700">{reservaAEliminar.deporte === 'basket' ? 'Básquet' : 'Vóley'}</p>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

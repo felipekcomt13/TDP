@@ -29,7 +29,8 @@ export const ReservasProvider = ({ children }) => {
     // Suscribirse a cambios en tiempo real
     const subscription = supabase
       .channel('reservas_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, (payload) => {
+        console.log('🔔 [ReservasContext] Actualización en tiempo real recibida:', payload);
         cargarReservas();
       })
       .subscribe();
@@ -64,10 +65,16 @@ export const ReservasProvider = ({ children }) => {
         diaSemana: r.dia_semana,
         estado: r.estado,
         notas: r.notas,
+        cancha: r.cancha || 'principal', // Default a principal para compatibilidad
+        deporte: r.deporte || 'basket', // Default a basket para compatibilidad
         fechaCreacion: r.created_at
       }));
 
       setReservas(reservasFormateadas);
+
+      // Log de debug para verificar actualizaciones
+      const pendientes = reservasFormateadas.filter(r => r.estado === 'pendiente').length;
+      console.log(`📊 [ReservasContext] Reservas cargadas: ${reservasFormateadas.length} total, ${pendientes} pendientes`);
     } catch (error) {
       console.error('Error al cargar reservas:', error);
     }
@@ -87,7 +94,9 @@ export const ReservasProvider = ({ children }) => {
         hora_fin: nuevaReserva.horaFin || null,
         dia_semana: nuevaReserva.diaSemana,
         estado: nuevaReserva.estado || 'pendiente',
-        notas: nuevaReserva.notas || null
+        notas: nuevaReserva.notas || null,
+        cancha: nuevaReserva.cancha || 'principal', // Default a principal
+        deporte: nuevaReserva.deporte || 'basket' // Default a basket
       };
 
       const { data, error } = await supabase
@@ -115,6 +124,8 @@ export const ReservasProvider = ({ children }) => {
         diaSemana: data.dia_semana,
         estado: data.estado,
         notas: data.notas,
+        cancha: data.cancha || 'principal',
+        deporte: data.deporte || 'basket',
         fechaCreacion: data.created_at
       };
     } catch (error) {
@@ -227,19 +238,43 @@ export const ReservasProvider = ({ children }) => {
     return reservas.filter(reserva => reserva.fecha === fecha);
   };
 
-  const verificarDisponibilidad = (fecha, hora) => {
+  const verificarDisponibilidad = (fecha, hora, canchaSeleccionada = null) => {
     return !reservas.some(reserva => {
       // Solo considerar reservas confirmadas o pendientes (no rechazadas)
       if (reserva.estado === 'rechazada') return false;
 
-      // Verificar si es una reserva de 1 hora
+      // Verificar si la reserva está en la fecha/hora solicitada
+      let estaEnHorario = false;
       if (!reserva.horaFin) {
-        return reserva.fecha === fecha && reserva.hora === hora;
+        // Reserva de 1 hora
+        estaEnHorario = reserva.fecha === fecha && reserva.hora === hora;
+      } else {
+        // Reserva multi-hora
+        const horasReservadas = obtenerHorasEnRango(reserva.hora, reserva.horaFin);
+        estaEnHorario = reserva.fecha === fecha && horasReservadas.includes(hora);
       }
 
-      // Verificar si es una reserva multi-hora
-      const horasReservadas = obtenerHorasEnRango(reserva.hora, reserva.horaFin);
-      return reserva.fecha === fecha && horasReservadas.includes(hora);
+      if (!estaEnHorario) return false;
+
+      // Si no se especifica cancha, verificar todas (comportamiento original)
+      if (!canchaSeleccionada) return true;
+
+      // REGLAS DE BLOQUEO:
+      // 1. Si intento reservar la misma cancha que está reservada → bloqueado
+      if (reserva.cancha === canchaSeleccionada) return true;
+
+      // 2. Si la cancha principal está reservada → anexas están bloqueadas
+      if (reserva.cancha === 'principal' && (canchaSeleccionada === 'anexa-1' || canchaSeleccionada === 'anexa-2')) {
+        return true;
+      }
+
+      // 3. Si alguna anexa está reservada → principal está bloqueada
+      if ((reserva.cancha === 'anexa-1' || reserva.cancha === 'anexa-2') && canchaSeleccionada === 'principal') {
+        return true;
+      }
+
+      // 4. Las anexas NO se bloquean entre sí
+      return false;
     });
   };
 
@@ -250,20 +285,24 @@ export const ReservasProvider = ({ children }) => {
 
     if (indexInicio === -1 || indexFin === -1) return [];
 
-    return horarios.slice(indexInicio, indexFin + 1);
+    // La hora de fin NO debe estar incluida en el rango (es cuando termina, no parte del bloque)
+    return horarios.slice(indexInicio, indexFin);
   };
 
-  const verificarDisponibilidadRango = (fecha, horaInicio, horaFin) => {
+  const verificarDisponibilidadRango = (fecha, horaInicio, horaFin, canchaSeleccionada = null) => {
     const horasDelRango = obtenerHorasEnRango(horaInicio, horaFin);
 
     // Verificar que todas las horas del rango estén disponibles
-    return horasDelRango.every(hora => verificarDisponibilidad(fecha, hora));
+    return horasDelRango.every(hora => verificarDisponibilidad(fecha, hora, canchaSeleccionada));
   };
 
-  const obtenerReservaEnSlot = (fecha, hora) => {
+  const obtenerReservaEnSlot = (fecha, hora, cancha = null) => {
     return reservas.find(reserva => {
       // Ignorar reservas rechazadas
       if (reserva.estado === 'rechazada') return false;
+
+      // Filtrar por cancha si se especifica
+      if (cancha && reserva.cancha !== cancha) return false;
 
       // Si es reserva de 1 hora
       if (!reserva.horaFin) {
@@ -274,6 +313,43 @@ export const ReservasProvider = ({ children }) => {
       const horasReservadas = obtenerHorasEnRango(reserva.hora, reserva.horaFin);
       return reserva.fecha === fecha && horasReservadas.includes(hora);
     });
+  };
+
+  // Obtener canchas bloqueadas por reglas de bloqueo recíproco
+  const obtenerCanchasBloqueadas = (fecha, hora) => {
+    const canchasBloqueadas = new Set();
+
+    reservas.forEach(reserva => {
+      // Solo considerar reservas confirmadas o pendientes
+      if (reserva.estado === 'rechazada') return;
+
+      // Verificar si la reserva está en esta fecha/hora
+      let estaEnHorario = false;
+      if (!reserva.horaFin) {
+        estaEnHorario = reserva.fecha === fecha && reserva.hora === hora;
+      } else {
+        const horasReservadas = obtenerHorasEnRango(reserva.hora, reserva.horaFin);
+        estaEnHorario = reserva.fecha === fecha && horasReservadas.includes(hora);
+      }
+
+      if (estaEnHorario) {
+        // Marcar la cancha reservada como bloqueada
+        canchasBloqueadas.add(reserva.cancha);
+
+        // Si principal está reservada → bloquear anexas
+        if (reserva.cancha === 'principal') {
+          canchasBloqueadas.add('anexa-1');
+          canchasBloqueadas.add('anexa-2');
+        }
+
+        // Si alguna anexa está reservada → bloquear principal
+        if (reserva.cancha === 'anexa-1' || reserva.cancha === 'anexa-2') {
+          canchasBloqueadas.add('principal');
+        }
+      }
+    });
+
+    return Array.from(canchasBloqueadas);
   };
 
   const generarHorarios = () => {
@@ -313,6 +389,7 @@ export const ReservasProvider = ({ children }) => {
     verificarDisponibilidadRango,
     obtenerHorasEnRango,
     obtenerReservaEnSlot,
+    obtenerCanchasBloqueadas,
     generarHorarios
   };
 

@@ -4,12 +4,14 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { obtenerNombreCancha, calcularPrecioReserva, obtenerDesglosePrecio } from '../utils/preciosCalculator';
 
 const AdminPanel = () => {
   const { reservas, confirmarReserva, rechazarReserva, obtenerHorasEnRango, cargarReservas } = useReservas();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState('todas');
+  const [filtroCancha, setFiltroCancha] = useState('todas'); // 'todas', 'principal', 'anexa-1', 'anexa-2'
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -45,6 +47,11 @@ const AdminPanel = () => {
         return fechaReserva >= fechaActual && reserva.estado !== 'rechazada';
       }
       return true;
+    })
+    .filter(reserva => {
+      // Filtro por cancha
+      if (filtroCancha === 'todas') return true;
+      return (reserva.cancha || 'principal') === filtroCancha;
     })
     .filter(reserva => {
       if (!busqueda) return true;
@@ -86,13 +93,13 @@ const AdminPanel = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-6 lg:px-8 py-12">
-        <div className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-5xl font-bold text-black tracking-tight">
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-12">
+        <div className="mb-8 md:mb-12">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+            <h1 className="text-3xl md:text-5xl font-bold text-black tracking-tight">
               PANEL ADMIN
             </h1>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4 w-full sm:w-auto">
               <button
                 onClick={() => navigate('/admin/usuarios')}
                 className="px-6 py-3 border border-gray-300 text-gray-700 text-sm font-medium tracking-wide hover:bg-gray-50 transition-colors uppercase"
@@ -110,7 +117,7 @@ const AdminPanel = () => {
         </div>
 
         {/* Estadísticas */}
-        <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <div className="bg-gray-50 border-l-2 border-black p-6">
             <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Total</p>
             <p className="text-3xl font-bold text-black">{reservas.length}</p>
@@ -193,6 +200,53 @@ const AdminPanel = () => {
             onChange={(e) => setBusqueda(e.target.value)}
             className="w-full px-0 py-3 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 text-sm tracking-wide transition-colors"
           />
+
+          {/* Filtro por cancha */}
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-semibold">Filtrar por cancha</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setFiltroCancha('todas')}
+                className={`px-4 py-2 text-xs font-medium tracking-wide transition-colors ${
+                  filtroCancha === 'todas'
+                    ? 'bg-black text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                TODAS
+              </button>
+              <button
+                onClick={() => setFiltroCancha('principal')}
+                className={`px-4 py-2 text-xs font-medium tracking-wide transition-colors ${
+                  filtroCancha === 'principal'
+                    ? 'bg-black text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                PRINCIPAL
+              </button>
+              <button
+                onClick={() => setFiltroCancha('anexa-1')}
+                className={`px-4 py-2 text-xs font-medium tracking-wide transition-colors ${
+                  filtroCancha === 'anexa-1'
+                    ? 'bg-black text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                ANEXA 1
+              </button>
+              <button
+                onClick={() => setFiltroCancha('anexa-2')}
+                className={`px-4 py-2 text-xs font-medium tracking-wide transition-colors ${
+                  filtroCancha === 'anexa-2'
+                    ? 'bg-black text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                ANEXA 2
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Lista de reservas */}
@@ -209,7 +263,7 @@ const AdminPanel = () => {
               return (
                 <div
                   key={reserva.id}
-                  className={`bg-white border p-6 transition-all hover:shadow-md ${
+                  className={`bg-white border p-4 md:p-6 transition-all hover:shadow-md ${
                     reserva.estado === 'rechazada'
                       ? 'border-gray-300 opacity-50'
                       : reserva.estado === 'pendiente'
@@ -217,10 +271,10 @@ const AdminPanel = () => {
                       : 'border-black'
                   }`}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-4">
-                        <h3 className="text-2xl font-bold text-black tracking-tight">
+                  <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
+                    <div className="flex-1 w-full">
+                      <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
+                        <h3 className="text-xl md:text-2xl font-bold text-black tracking-tight">
                           {reserva.nombre}
                         </h3>
                         <span
@@ -241,7 +295,25 @@ const AdminPanel = () => {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 text-sm text-gray-600">
+                        <p>
+                          <span className="font-semibold">Cancha:</span>{' '}
+                          <span className="text-black font-bold">{obtenerNombreCancha(reserva.cancha || 'principal')}</span>
+                        </p>
+                        <p>
+                          <span className="font-semibold">Deporte:</span>{' '}
+                          <span className="text-black font-bold">{reserva.deporte === 'basket' ? 'Básquet' : 'Vóley'}</span>
+                        </p>
+                        <p>
+                          <span className="font-semibold">Precio:</span>{' '}
+                          <span className="text-black font-bold">
+                            S/ {calcularPrecioReserva(reserva.cancha || 'principal', reserva.hora, reserva.hora_fin)}
+                            {reserva.hora_fin && (() => {
+                              const desglose = obtenerDesglosePrecio(reserva.cancha || 'principal', reserva.hora, reserva.hora_fin);
+                              return <span className="text-xs text-gray-600 font-normal ml-1">({desglose.numHoras}h)</span>;
+                            })()}
+                          </span>
+                        </p>
                         <p>
                           <span className="font-semibold">Fecha:</span>{' '}
                           {formatearFecha(reserva.fecha)}
@@ -251,12 +323,9 @@ const AdminPanel = () => {
                           {reserva.hora_fin ? (
                             <>
                               {reserva.hora} - {reserva.hora_fin}
-                              <span className="ml-2 text-black font-semibold">
-                                ({obtenerHorasEnRango(reserva.hora, reserva.hora_fin).length - 1} hora{obtenerHorasEnRango(reserva.hora, reserva.hora_fin).length - 1 !== 1 ? 's' : ''})
-                              </span>
                             </>
                           ) : (
-                            <>{reserva.hora} (1 hora)</>
+                            <>{reserva.hora}</>
                           )}
                         </p>
                         <p>
@@ -281,16 +350,16 @@ const AdminPanel = () => {
                     </div>
 
                     {reserva.estado === 'pendiente' && (
-                      <div className="ml-6 flex flex-col gap-2">
+                      <div className="w-full lg:w-auto lg:ml-6 flex flex-row lg:flex-col gap-2">
                         <button
                           onClick={() => confirmarReserva(reserva.id)}
-                          className="px-4 py-2 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+                          className="flex-1 lg:flex-initial px-4 py-2 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
                         >
                           Confirmar
                         </button>
                         <button
                           onClick={() => rechazarReserva(reserva.id)}
-                          className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                          className="flex-1 lg:flex-initial px-4 py-2 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
                         >
                           Rechazar
                         </button>

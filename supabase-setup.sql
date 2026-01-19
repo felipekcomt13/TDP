@@ -182,6 +182,14 @@ CREATE TRIGGER on_reserva_updated
 -- WHERE email = 'email@del-usuario.com';
 
 -- ============================================
+-- 7. HABILITAR REALTIME PARA LA TABLA RESERVAS
+-- ============================================
+
+-- Habilitar Realtime para que las actualizaciones se reflejen automáticamente
+-- sin necesidad de recargar la página
+ALTER PUBLICATION supabase_realtime ADD TABLE reservas;
+
+-- ============================================
 -- CONFIGURACIÓN COMPLETADA
 -- ============================================
 

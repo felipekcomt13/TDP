@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useReservas } from '../context/ReservasContext';
-
-const COSTO_POR_HORA = 40; // Costo en soles por hora
+import { useAuth } from '../context/AuthContext';
+import { calcularPrecioReserva, obtenerNombreCancha, obtenerTipoHorario, obtenerDesglosePrecio } from '../utils/preciosCalculator';
 
 const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) => {
   const { agregarReserva, verificarDisponibilidad, verificarDisponibilidadRango, obtenerHorasEnRango } = useReservas();
+  const { user, profile } = useAuth();
   const [formData, setFormData] = useState({
     nombre: '',
     telefono: '',
     email: '',
     dni: '',
-    notas: ''
+    notas: '',
+    deporte: 'basket' // 'basket' o 'voley'
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,6 +43,18 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
       }
     }
   }, [horarioSeleccionado, verificarDisponibilidad, verificarDisponibilidadRango]);
+
+  // Autocompletar campos si el usuario está logueado
+  useEffect(() => {
+    if (user && profile) {
+      setFormData(prev => ({
+        ...prev,
+        nombre: profile.nombre || '',
+        email: user.email || '',
+        deporte: prev.deporte || 'basket' // Mantener deporte seleccionado
+      }));
+    }
+  }, [user, profile]);
 
   // Efecto para el countdown de redirección
   useEffect(() => {
@@ -144,6 +158,8 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
       let mensaje = `Deseo confirmar mi reserva para:\n\n`;
       mensaje += `• Fecha: ${fechaFormateada}\n`;
       mensaje += `• Horario: ${horarioTexto}\n`;
+      mensaje += `• Cancha: ${obtenerNombreCancha(horarioSeleccionado.cancha || 'principal')}\n`;
+      mensaje += `• Deporte: ${formData.deporte === 'basket' ? 'Básquet' : 'Vóley'}\n`;
       mensaje += `• A nombre de: ${formData.nombre}\n`;
       mensaje += `• Correo de la reserva: ${formData.email || 'No proporcionado'}\n`;
       mensaje += `• DNI: ${formData.dni}\n`;
@@ -167,7 +183,9 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
         fecha: horarioSeleccionado.fecha,
         hora: horarioSeleccionado.horaInicio || horarioSeleccionado.hora,
         diaSemana: horarioSeleccionado.diaSemana,
-        estado: 'pendiente' // Agregar estado pendiente
+        estado: 'pendiente', // Agregar estado pendiente
+        cancha: horarioSeleccionado.cancha || 'principal', // Agregar cancha
+        deporte: formData.deporte // Agregar deporte
       };
 
       // Agregar horaFin solo si existe
@@ -193,14 +211,12 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
 
   if (!horarioSeleccionado) return null;
 
-  // Calcular número de horas y costo total
-  // obtenerHorasEnRango devuelve los slots incluyendo inicio y fin
-  // Por ejemplo: de 8:00 a 9:00 devuelve ["8:00", "9:00"] (2 elementos)
-  // Pero la duración real es 1 hora, por eso restamos 1
-  const numeroHoras = horarioSeleccionado.horaFin
-    ? obtenerHorasEnRango(horarioSeleccionado.horaInicio, horarioSeleccionado.horaFin).length - 1
-    : 1;
-  const costoTotal = numeroHoras * COSTO_POR_HORA;
+  // Calcular precio total según cancha y horario (por hora)
+  const cancha = horarioSeleccionado.cancha || 'principal';
+  const desglose = obtenerDesglosePrecio(cancha, horarioSeleccionado.horaInicio, horarioSeleccionado.horaFin);
+  const costoTotal = desglose.precioTotal;
+  const nombreCancha = obtenerNombreCancha(cancha);
+  const tipoHorario = obtenerTipoHorario(cancha, horarioSeleccionado.horaInicio);
 
   // Si está redirigiendo, mostrar mensaje de countdown
   if (redirigiendo) {
@@ -249,22 +265,30 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white max-w-lg w-full p-8 border border-gray-200">
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h2 className="text-3xl font-bold text-black tracking-tight mb-1">NUEVA RESERVA</h2>
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Complejo Deportivo Triple Doble</p>
+      <div className="bg-white max-w-lg w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+        <div className="sticky top-0 bg-white z-10 p-6 pb-4 border-b border-gray-100">
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-3xl font-bold text-black tracking-tight mb-1">NUEVA RESERVA</h2>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Complejo Deportivo Triple Doble</p>
+            </div>
+            <button
+              onClick={onCerrar}
+              className="text-gray-400 hover:text-black text-3xl leading-none transition-colors"
+            >
+              ×
+            </button>
           </div>
-          <button
-            onClick={onCerrar}
-            className="text-gray-400 hover:text-black text-3xl leading-none transition-colors"
-          >
-            ×
-          </button>
         </div>
 
-        <div className="bg-gray-50 border-l-2 border-black p-4 mb-6">
-          <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="p-6 pt-4">
+          <div className="bg-gray-50 border-l-2 border-black p-4 mb-4">
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Cancha</p>
+              <p className="font-bold text-black">{nombreCancha}</p>
+              <p className="text-[9px] text-gray-600 uppercase mt-0.5">{tipoHorario}</p>
+            </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Fecha</p>
               <p className="font-medium text-black">
@@ -279,12 +303,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
               <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Horario</p>
               <p className="font-medium text-black">
                 {horarioSeleccionado.horaFin ? (
-                  <>
-                    {horarioSeleccionado.horaInicio} - {horarioSeleccionado.horaFin}
-                    <span className="ml-2 text-xs text-gray-600">
-                      ({obtenerHorasEnRango(horarioSeleccionado.horaInicio, horarioSeleccionado.horaFin).length - 1}h)
-                    </span>
-                  </>
+                  <>{horarioSeleccionado.horaInicio} - {horarioSeleccionado.horaFin}</>
                 ) : (
                   <>{horarioSeleccionado.horaInicio || horarioSeleccionado.hora}</>
                 )}
@@ -293,13 +312,42 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
           </div>
         </div>
 
+        {/* Selector de deporte */}
+        <div className="mb-4">
+          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">Deporte</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, deporte: 'basket' }))}
+              className={`flex-1 px-4 py-2 text-sm font-medium tracking-wide transition-colors ${
+                formData.deporte === 'basket'
+                  ? 'bg-black text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              BÁSQUET
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, deporte: 'voley' }))}
+              className={`flex-1 px-4 py-2 text-sm font-medium tracking-wide transition-colors ${
+                formData.deporte === 'voley'
+                  ? 'bg-black text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              VÓLEY
+            </button>
+          </div>
+        </div>
+
         {error && (
-          <div className="bg-gray-50 border-l-2 border-gray-800 text-gray-800 px-4 py-3 mb-6 text-sm">
+          <div className="bg-gray-50 border-l-2 border-gray-800 text-gray-800 px-4 py-3 mb-4 text-sm">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="nombre" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
               Nombre completo *
@@ -316,7 +364,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label htmlFor="telefono" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
                 Teléfono
@@ -375,47 +423,54 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
               name="notas"
               value={formData.notas}
               onChange={handleChange}
-              rows="3"
+              rows="2"
               className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 resize-none transition-colors"
               placeholder="Información adicional..."
             />
           </div>
 
           {/* Sección de costo total */}
-          <div className="bg-gray-50 border-l-2 border-black p-6">
-            <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-4 font-semibold">
+          <div className="bg-gray-50 border-l-2 border-black p-4">
+            <h3 className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-semibold">
               Total a pagar
             </h3>
             <div className="mb-4">
-              <p className="text-sm text-gray-700 mb-2">
-                {numeroHoras} hora{numeroHoras !== 1 ? 's' : ''} × S/ {COSTO_POR_HORA} = <span className="font-bold text-black text-2xl">S/ {costoTotal}</span>
+              <p className="text-xs text-gray-600 mb-1 uppercase tracking-wide">
+                {nombreCancha} - {tipoHorario}
+              </p>
+              <p className="text-xs text-gray-500 mb-2">
+                {desglose.desglose}
+              </p>
+              <p className="text-sm text-gray-700">
+                Total: <span className="font-bold text-black text-3xl">S/ {costoTotal}</span>
               </p>
             </div>
-            <div className="pt-4 border-t border-gray-200">
+            <div className="pt-3 border-t border-gray-200">
               <p className="text-xs text-gray-600 leading-relaxed">
                 Recuerda enviar la foto del comprobante de pago al número de WhatsApp
               </p>
             </div>
           </div>
 
-          <div className="flex gap-4 pt-6">
+          <div className="flex gap-4 pt-4">
             <button
               type="button"
               onClick={onCerrar}
-              className="flex-1 px-6 py-4 border border-gray-300 text-gray-700 text-sm font-medium tracking-wide hover:bg-gray-50 transition-colors uppercase disabled:opacity-50"
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 text-sm font-medium tracking-wide hover:bg-gray-50 transition-colors uppercase disabled:opacity-50"
               disabled={loading}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 px-6 py-4 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors uppercase disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors uppercase disabled:bg-gray-400 disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? 'Procesando...' : 'Confirmar'}
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );
