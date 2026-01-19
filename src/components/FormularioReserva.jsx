@@ -174,7 +174,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
 
       // Codificar mensaje para URL
       const mensajeCodificado = encodeURIComponent(mensaje);
-      const numeroWhatsApp = '51922803684'; // Número de prueba
+      const numeroWhatsApp = '51977510600'; // Número de WhatsApp del complejo
       const url = `https://wa.me/${numeroWhatsApp}?text=${mensajeCodificado}`;
 
       // Crear reserva con estado pendiente
