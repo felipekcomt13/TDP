@@ -16,7 +16,7 @@ export const ReservasProvider = ({ children }) => {
   const [reservas, setReservas] = useState([]);
   const [configuracion, setConfiguracion] = useState({
     horaInicio: '08:00',
-    horaFin: '22:00',
+    horaFin: '24:00',
     intervalo: 60, // minutos
     diasSemana: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
   });

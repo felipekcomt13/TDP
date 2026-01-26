@@ -22,7 +22,7 @@ const LandingPage = () => {
     {
       numero: 4,
       titulo: 'Realiza el pago',
-      descripcion: 'Efectúa el pago correspondiente (S/ 40 por hora) a través de los métodos disponibles.'
+      descripcion: 'Efectúa el pago correspondiente a través de los métodos disponibles.'
     },
     {
       numero: 5,
@@ -167,7 +167,7 @@ const LandingPage = () => {
                     Tarifa
                   </p>
                   <p className="text-2xl font-bold text-black">
-                    S/ 40 <span className="text-sm text-gray-600 font-normal">por hora</span>
+                    desde: S/ 50 <span className="text-sm text-gray-600 font-normal">por hora</span>
                   </p>
                 </div>
               </div>
@@ -191,7 +191,7 @@ const LandingPage = () => {
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    <span>Horario de atención: 8:00 AM - 10:00 PM</span>
+                    <span>Horario de atención: 8:00 AM - 12:00 AM</span>
                   </li>
                 </ul>
               </div>
