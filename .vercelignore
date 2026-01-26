@@ -1,0 +1,10 @@
+# Vercel ignore file
+# This file tells Vercel to ignore certain files during deployment
+
+# Ignore local environment files
+.env.local
+.env.*.local
+
+# Ignore development files
+node_modules
+.git

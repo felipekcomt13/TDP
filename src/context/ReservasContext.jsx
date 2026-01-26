@@ -240,8 +240,8 @@ export const ReservasProvider = ({ children }) => {
 
   const verificarDisponibilidad = (fecha, hora, canchaSeleccionada = null) => {
     return !reservas.some(reserva => {
-      // Solo considerar reservas confirmadas o pendientes (no rechazadas)
-      if (reserva.estado === 'rechazada') return false;
+      // Solo considerar reservas confirmadas (las pendientes no bloquean)
+      if (reserva.estado !== 'confirmada') return false;
 
       // Verificar si la reserva está en la fecha/hora solicitada
       let estaEnHorario = false;
@@ -296,10 +296,16 @@ export const ReservasProvider = ({ children }) => {
     return horasDelRango.every(hora => verificarDisponibilidad(fecha, hora, canchaSeleccionada));
   };
 
-  const obtenerReservaEnSlot = (fecha, hora, cancha = null) => {
+  const obtenerReservaEnSlot = (fecha, hora, cancha = null, incluirPendientes = false) => {
     return reservas.find(reserva => {
-      // Ignorar reservas rechazadas
-      if (reserva.estado === 'rechazada') return false;
+      // Filtrar por estado: solo confirmadas, o todas si incluirPendientes es true
+      if (incluirPendientes) {
+        // Admins ven todas excepto rechazadas
+        if (reserva.estado === 'rechazada') return false;
+      } else {
+        // Usuarios normales solo ven confirmadas
+        if (reserva.estado !== 'confirmada') return false;
+      }
 
       // Filtrar por cancha si se especifica
       if (cancha && reserva.cancha !== cancha) return false;
@@ -320,8 +326,8 @@ export const ReservasProvider = ({ children }) => {
     const canchasBloqueadas = new Set();
 
     reservas.forEach(reserva => {
-      // Solo considerar reservas confirmadas o pendientes
-      if (reserva.estado === 'rechazada') return;
+      // Solo considerar reservas confirmadas (las pendientes no bloquean)
+      if (reserva.estado !== 'confirmada') return;
 
       // Verificar si la reserva está en esta fecha/hora
       let estaEnHorario = false;

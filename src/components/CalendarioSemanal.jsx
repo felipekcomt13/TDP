@@ -180,18 +180,17 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       hora >= rangoSeleccion.horaInicio;
 
     // Determinar clases CSS
-    let clasesCelda = 'p-2 md:p-4 border-r border-gray-200 text-center transition-all ';
+    let clasesCelda = 'p-1.5 md:p-3 border-r border-gray-200 text-center transition-all ';
 
     if (estaBloqueada) {
-      // Cancha bloqueada por otra reserva
+      // Cancha bloqueada por otra reserva confirmada
       clasesCelda += 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60';
-    } else if (!disponible) {
-      // Celda reservada
-      if (reserva?.estado === 'pendiente') {
-        clasesCelda += 'bg-gray-100 text-gray-600 cursor-not-allowed';
-      } else {
-        clasesCelda += 'bg-black text-white cursor-not-allowed';
-      }
+    } else if (!disponible && reserva?.estado === 'confirmada') {
+      // Celda con reserva confirmada (bloqueada)
+      clasesCelda += 'bg-black text-white cursor-not-allowed';
+    } else if (reserva?.estado === 'pendiente') {
+      // Celda con reserva pendiente (permite más solicitudes)
+      clasesCelda += 'bg-yellow-50 border-yellow-200 text-yellow-800 cursor-pointer hover:bg-yellow-100';
     } else if (esHoraInicial) {
       // Hora inicial seleccionada
       clasesCelda += 'bg-black text-white font-bold cursor-pointer border-2 border-black';
@@ -216,8 +215,8 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       <td
         key={`${diaIndex}-${cancha}`}
         rowSpan={rowspan}
-        onClick={() => !estaBloqueada && manejarClickCelda(dia, hora, disponible, cancha)}
-        onMouseEnter={() => !estaBloqueada && manejarMouseEnter(dia, hora)}
+        onClick={() => (!estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarClickCelda(dia, hora, disponible || reserva?.estado === 'pendiente', cancha)}
+        onMouseEnter={() => (!estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarMouseEnter(dia, hora)}
         className={clasesCelda}
       >
         {estaBloqueada ? (
@@ -230,6 +229,25 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
                 {obtenerNombreCancha(canchaQueBloquea)}
               </div>
             )}
+          </div>
+        ) : reserva?.estado === 'pendiente' ? (
+          <div className="text-[10px] md:text-xs">
+            <span className="font-semibold block uppercase tracking-wide text-[9px] md:text-[10px] mb-1">
+              Pendiente
+            </span>
+            {reserva?.nombre && (isAdmin() || reserva.userId === user?.id) && (
+              <span className="block text-[10px] md:text-xs text-yellow-700 truncate max-w-[80px] md:max-w-none">
+                {reserva.nombre}
+              </span>
+            )}
+            {reserva?.horaFin && (
+              <span className="block mt-1 text-[9px] md:text-[10px] text-yellow-600">
+                {reserva.hora} - {reserva.horaFin}
+              </span>
+            )}
+            <div className="text-[8px] md:text-[9px] text-yellow-600 mt-1 uppercase">
+              Click para solicitar
+            </div>
           </div>
         ) : disponible ? (
           <div className="text-xs md:text-sm">
@@ -257,15 +275,15 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
         ) : (
           <div className="text-[10px] md:text-xs">
             <span className="font-semibold block uppercase tracking-wide text-[9px] md:text-[10px] mb-1">
-              {reserva?.estado === 'pendiente' ? 'Pend' : 'Conf'}
+              Confirmado
             </span>
             {reserva?.nombre && (isAdmin() || reserva.userId === user?.id) && (
-              <span className={`block text-[10px] md:text-xs ${reserva?.estado === 'pendiente' ? 'text-gray-600' : 'text-gray-300'} truncate max-w-[80px] md:max-w-none`}>
+              <span className="block text-[10px] md:text-xs text-gray-300 truncate max-w-[80px] md:max-w-none">
                 {reserva.nombre}
               </span>
             )}
             {reserva?.horaFin && (
-              <span className={`block mt-1 text-[9px] md:text-[10px] ${reserva?.estado === 'pendiente' ? 'text-gray-500' : 'text-gray-400'}`}>
+              <span className="block mt-1 text-[9px] md:text-[10px] text-gray-400">
                 {reserva.hora} - {reserva.horaFin}
               </span>
             )}
@@ -278,7 +296,8 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
   const obtenerEstadoCelda = (fecha, hora, cancha) => {
     const fechaStr = format(fecha, 'yyyy-MM-dd');
     const disponible = verificarDisponibilidad(fechaStr, hora, cancha);
-    const reserva = obtenerReservaEnSlot(fechaStr, hora, cancha);
+    // Los admins ven reservas pendientes, usuarios normales no
+    const reserva = obtenerReservaEnSlot(fechaStr, hora, cancha, isAdmin());
     const canchasBloqueadas = obtenerCanchasBloqueadas(fechaStr, hora);
     const estaBloqueada = canchasBloqueadas.includes(cancha);
 
@@ -288,14 +307,14 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       // Buscar qué cancha tiene la reserva que causa el bloqueo
       if (cancha === 'anexa-1' || cancha === 'anexa-2') {
         // Las anexas son bloqueadas por principal
-        const reservaPrincipal = obtenerReservaEnSlot(fechaStr, hora, 'principal');
+        const reservaPrincipal = obtenerReservaEnSlot(fechaStr, hora, 'principal', isAdmin());
         if (reservaPrincipal) {
           canchaQueBloquea = 'principal';
         }
       } else if (cancha === 'principal') {
         // Principal es bloqueada por cualquier anexa
-        const reservaAnexa1 = obtenerReservaEnSlot(fechaStr, hora, 'anexa-1');
-        const reservaAnexa2 = obtenerReservaEnSlot(fechaStr, hora, 'anexa-2');
+        const reservaAnexa1 = obtenerReservaEnSlot(fechaStr, hora, 'anexa-1', isAdmin());
+        const reservaAnexa2 = obtenerReservaEnSlot(fechaStr, hora, 'anexa-2', isAdmin());
         if (reservaAnexa1) {
           canchaQueBloquea = 'anexa-1';
         } else if (reservaAnexa2) {
@@ -589,7 +608,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
                 if (vistaCancha === 'principal') {
                   // Vista principal: una columna por día
                   return (
-                    <th key={index} className="p-2 md:p-4 text-center font-medium border-r border-gray-700 min-w-[100px] md:min-w-[140px] last:border-r-0">
+                    <th key={index} className="p-2 md:p-4 text-center font-medium border-r border-gray-700 min-w-[90px] md:min-w-[120px] last:border-r-0">
                       <div className="flex flex-col">
                         <span className="text-[9px] md:text-[10px] uppercase tracking-widest opacity-70">{format(dia, 'EEE', { locale: es })}</span>
                         <span className={`text-sm md:text-lg font-bold mt-1 ${isSameDay(dia, new Date()) ? 'underline' : ''}`}>
@@ -601,7 +620,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
                 } else {
                   // Vista anexas: dos columnas por día (Anexa 1 y Anexa 2)
                   return (
-                    <th key={index} colSpan={2} className="p-0 border-r border-gray-700 last:border-r-0 min-w-[140px] md:min-w-[180px]">
+                    <th key={index} colSpan={2} className="p-0 border-r border-gray-700 last:border-r-0 min-w-[130px] md:min-w-[160px]">
                       <div className="flex flex-col">
                         <div className="p-1 md:p-2 border-b border-gray-700">
                           <span className="text-[9px] md:text-[10px] uppercase tracking-widest opacity-70">{format(dia, 'EEE', { locale: es })}</span>
@@ -610,8 +629,8 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
                           </span>
                         </div>
                         <div className="flex">
-                          <div className="flex-1 p-1 md:p-2 text-[9px] md:text-[10px] uppercase tracking-wider border-r border-gray-700">Anexa 1</div>
-                          <div className="flex-1 p-1 md:p-2 text-[9px] md:text-[10px] uppercase tracking-wider">Anexa 2</div>
+                          <div className="flex-1 p-0.5 md:p-1.5 text-[8px] md:text-[9px] uppercase tracking-wide border-r border-gray-700">Anexa 1</div>
+                          <div className="flex-1 p-0.5 md:p-1.5 text-[8px] md:text-[9px] uppercase tracking-wide">Anexa 2</div>
                         </div>
                       </div>
                     </th>
@@ -655,12 +674,12 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
           <span className="uppercase tracking-wide text-gray-600">Disponible</span>
         </div>
         <div className="flex items-center gap-1.5 md:gap-2">
-          <div className="w-4 h-4 md:w-6 md:h-6 bg-gray-100 border border-gray-300"></div>
-          <span className="uppercase tracking-wide text-gray-600">Pendiente</span>
+          <div className="w-4 h-4 md:w-6 md:h-6 bg-yellow-50 border border-yellow-200"></div>
+          <span className="uppercase tracking-wide text-gray-600">Pendiente (puedes solicitar)</span>
         </div>
         <div className="flex items-center gap-1.5 md:gap-2">
           <div className="w-4 h-4 md:w-6 md:h-6 bg-black border border-black"></div>
-          <span className="uppercase tracking-wide text-gray-600">Confirmado</span>
+          <span className="uppercase tracking-wide text-gray-600">Confirmado (bloqueado)</span>
         </div>
       </div>
     </div>

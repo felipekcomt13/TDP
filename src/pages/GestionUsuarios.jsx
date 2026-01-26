@@ -49,13 +49,39 @@ const GestionUsuarios = () => {
   };
 
   const cambiarRol = async (userId, nuevoRol) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: nuevoRol })
-        .eq('id', userId);
+    console.log('🔄 [GestionUsuarios] Iniciando cambio de rol:', {
+      userId,
+      nuevoRol,
+      timestamp: new Date().toISOString(),
+      metodo: 'RPC (cambiar_rol_usuario)'
+    });
 
-      if (error) throw error;
+    try {
+      // Usar RPC en lugar de UPDATE para evitar problemas de CORS
+      const { data, error } = await supabase.rpc('cambiar_rol_usuario', {
+        user_id: userId,
+        nuevo_rol: nuevoRol
+      });
+
+      console.log('📡 [GestionUsuarios] Respuesta de RPC:', {
+        data,
+        error,
+        hasError: !!error,
+        hasData: !!data
+      });
+
+      if (error) {
+        console.error('❌ [GestionUsuarios] Error de Supabase RPC:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          error: error
+        });
+        throw error;
+      }
+
+      console.log('✅ [GestionUsuarios] Rol cambiado exitosamente:', data);
 
       mostrarMensaje(
         `Usuario ${nuevoRol === 'admin' ? 'promovido a administrador' : 'cambiado a usuario normal'}`,
@@ -63,8 +89,18 @@ const GestionUsuarios = () => {
       );
       await cargarUsuarios();
     } catch (error) {
-      console.error('Error al cambiar rol:', error);
-      mostrarMensaje('Error al cambiar el rol del usuario', 'error');
+      console.error('❌ [GestionUsuarios] Error al cambiar rol:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        stack: error.stack,
+        fullError: error
+      });
+
+      // Mostrar mensaje de error más específico
+      const mensajeError = error.message || 'No se pudo cambiar el rol del usuario';
+      mostrarMensaje(`Error: ${mensajeError}`, 'error');
     }
   };
 

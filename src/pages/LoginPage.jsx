@@ -66,7 +66,7 @@ const LoginPage = () => {
             setError(`Error al crear la cuenta: ${error.message}`);
           }
         } else {
-          setSuccessMessage('Cuenta creada exitosamente. Revisa tu email para confirmar (si está habilitado).');
+          setSuccessMessage('Cuenta creada exitosamente. Ya puedes iniciar sesión.');
           setFormData({ email: '', password: '', nombre: '' });
         }
       }

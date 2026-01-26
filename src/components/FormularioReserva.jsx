@@ -23,6 +23,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
   useEffect(() => {
     if (horarioSeleccionado) {
       // Verificar disponibilidad al abrir el modal
+      // Nota: las reservas pendientes no bloquean, solo las confirmadas
       if (horarioSeleccionado.horaFin) {
         // Es un rango
         const disponible = verificarDisponibilidadRango(
@@ -31,14 +32,14 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
           horarioSeleccionado.horaFin
         );
         if (!disponible) {
-          setError('Uno o más horarios en el rango ya no están disponibles');
+          setError('Uno o más horarios en el rango ya están confirmados');
         }
       } else {
         // Es un solo horario (compatibilidad retroactiva)
         const hora = horarioSeleccionado.horaInicio || horarioSeleccionado.hora;
         const disponible = verificarDisponibilidad(horarioSeleccionado.fecha, hora);
         if (!disponible) {
-          setError('Este horario ya no está disponible');
+          setError('Este horario ya está confirmado por otro usuario');
         }
       }
     }
@@ -120,6 +121,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
     }
 
     // Verificar disponibilidad nuevamente antes de guardar
+    // Nota: las reservas pendientes no bloquean, solo las confirmadas
     let disponible;
     if (horarioSeleccionado.horaFin) {
       // Verificar rango completo
@@ -135,7 +137,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
     }
 
     if (!disponible) {
-      setError('Este horario ya no está disponible');
+      setError('Este horario ya está confirmado por otro usuario');
       return;
     }
 

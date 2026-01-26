@@ -81,28 +81,21 @@ export const AuthProvider = ({ children }) => {
 
   const signUp = async (email, password, nombre) => {
     try {
+      // Pasar el nombre en los metadatos para que el trigger lo use
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            nombre: nombre || email.split('@')[0]
+          }
+        }
       });
 
       if (error) throw error;
 
-      // Crear perfil
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: data.user.id,
-              email: email,
-              role: 'user',
-              nombre: nombre || email.split('@')[0]
-            }
-          ]);
-
-        if (profileError) throw profileError;
-      }
+      // El perfil se crea automáticamente mediante el trigger handle_new_user()
+      // No es necesario hacer INSERT manual aquí
 
       return { data, error: null };
     } catch (error) {
