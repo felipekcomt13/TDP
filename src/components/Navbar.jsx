@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useReservas } from '../context/ReservasContext';
+import logo from '../assets/image.png';
 
 const Navbar = () => {
   const location = useLocation();
@@ -32,13 +33,16 @@ const Navbar = () => {
       <div className="container mx-auto px-4 md:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo / Branding */}
-          <Link to="/" onClick={cerrarMenu} className="flex flex-col leading-tight hover:opacity-70 transition-opacity">
-            <span className="text-[9px] md:text-[10px] tracking-[0.2em] uppercase text-gray-600 font-medium">
-              Complejo Deportivo
-            </span>
-            <span className="text-xl md:text-2xl font-bold tracking-tight text-black">
-              TRIPLE DOBLE
-            </span>
+          <Link to="/" onClick={cerrarMenu} className="flex items-center gap-3 hover:opacity-70 transition-opacity">
+            <img src={logo} alt="Triple Doble" className="h-10 md:h-12 w-auto" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-[9px] md:text-[10px] tracking-[0.2em] uppercase text-gray-600 font-medium">
+                Complejo Deportivo
+              </span>
+              <span className="text-xl md:text-2xl font-bold tracking-tight text-black">
+                TRIPLE DOBLE
+              </span>
+            </div>
           </Link>
 
           {/* Botón hamburguesa (móvil) */}
