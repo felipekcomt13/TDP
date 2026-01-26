@@ -191,7 +191,7 @@ const LandingPage = () => {
                   </li>
                   <li className="flex items-start">
                     <span className="mr-2">•</span>
-                    <span>Horario de atención: 8:00 AM - 12:00 AM</span>
+                    <span>Horario de atención: 6:00 AM - 1:00 AM (día siguiente)</span>
                   </li>
                 </ul>
               </div>
