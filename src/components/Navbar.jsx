@@ -88,6 +88,19 @@ const Navbar = () => {
                 <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-black"></span>
               )}
             </Link>
+            <Link
+              to="/campo"
+              className={`relative px-6 py-2 text-sm font-medium tracking-wide transition-colors ${
+                isActive('/campo')
+                  ? 'text-black'
+                  : 'text-gray-500 hover:text-black'
+              }`}
+            >
+              CAMPO
+              {isActive('/campo') && (
+                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-black"></span>
+              )}
+            </Link>
 
             {user && (
               <Link
@@ -194,6 +207,15 @@ const Navbar = () => {
               }`}
             >
               RESERVAR
+            </Link>
+            <Link
+              to="/campo"
+              onClick={cerrarMenu}
+              className={`block px-4 py-3 text-sm font-medium tracking-wide transition-colors ${
+                isActive('/campo') ? 'bg-black text-white' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              CAMPO
             </Link>
 
             {user && (

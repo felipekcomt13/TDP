@@ -9,6 +9,7 @@ import ReservasPage from './pages/ReservasPage';
 import LoginPage from './pages/LoginPage';
 import AdminPanel from './pages/AdminPanel';
 import GestionUsuarios from './pages/GestionUsuarios';
+import CampoPage from './pages/CampoPage';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/reservar" element={<HomePage />} />
+              <Route path="/campo" element={<CampoPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route
                 path="/reservas"
