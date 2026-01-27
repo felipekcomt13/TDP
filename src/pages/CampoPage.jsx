@@ -14,10 +14,10 @@ const CampoPage = () => {
   const svgRef = useRef(null);
   const [cargado, setCargado] = useState(false);
 
-  // Detectar si es móvil
+  // Detectar si es móvil (solo por ancho de pantalla, no por touch)
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+      setIsMobile(window.innerWidth < 768);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
