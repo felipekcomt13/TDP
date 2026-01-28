@@ -73,6 +73,35 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
     return `${nuevaHora.toString().padStart(2, '0')}:${nuevoMinuto.toString().padStart(2, '0')}`;
   };
 
+  // Función para verificar si una fecha/hora ya pasó
+  const esHoraPasada = (fecha, hora) => {
+    const ahora = new Date();
+    const fechaComparar = new Date(fecha);
+
+    // Si la fecha es anterior a hoy, ya pasó
+    if (fechaComparar < new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())) {
+      return true;
+    }
+
+    // Si es el día de hoy, verificar la hora
+    if (isSameDay(fechaComparar, ahora)) {
+      const [horaSlot, minutoSlot] = hora.split(':').map(Number);
+      const horaActual = ahora.getHours();
+      const minutoActual = ahora.getMinutes();
+
+      // Calcular la hora de fin del slot
+      const horaFin = calcularHoraFin(hora);
+      const [horaFinSlot] = horaFin.split(':').map(Number);
+
+      // Si la hora de fin del slot ya pasó, entonces este slot ya no está disponible
+      if (horaFinSlot < horaActual || (horaFinSlot === horaActual && minutoActual > 0)) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   const cambiarSemana = (direccion) => {
     const nuevaFecha = addDays(fechaActual, direccion * 7);
     setFechaActual(nuevaFecha);
@@ -137,7 +166,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
 
   // Función auxiliar para renderizar una celda de cancha
   const renderizarCelda = (dia, hora, cancha, diaIndex) => {
-    const { disponible, reserva, estaBloqueada, canchaQueBloquea } = obtenerEstadoCelda(dia, hora, cancha);
+    const { disponible, reserva, estaBloqueada, canchaQueBloquea, horaPasada } = obtenerEstadoCelda(dia, hora, cancha);
     const fechaStr = format(dia, 'yyyy-MM-dd');
 
     // Verificar si esta celda es parte de un bloque multi-hora pero no es la primera
@@ -182,15 +211,26 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
     // Determinar clases CSS
     let clasesCelda = 'p-1.5 md:p-3 border-r border-gray-200 text-center transition-all ';
 
-    if (estaBloqueada) {
+    if (horaPasada && (!reserva || !isAdmin())) {
+      // Hora ya pasada - no disponible (para usuarios normales oculta todo, para admin solo si no hay reserva)
+      clasesCelda += 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-70';
+    } else if (estaBloqueada) {
       // Cancha bloqueada por otra reserva confirmada
       clasesCelda += 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60';
     } else if (!disponible && reserva?.estado === 'confirmada') {
-      // Celda con reserva confirmada (bloqueada)
-      clasesCelda += 'bg-black text-white cursor-not-allowed';
+      // Celda con reserva confirmada (bloqueada) - si es pasada y admin, mostrar con menos opacidad
+      if (horaPasada && isAdmin()) {
+        clasesCelda += 'bg-gray-600 text-white cursor-not-allowed opacity-50';
+      } else {
+        clasesCelda += 'bg-black text-white cursor-not-allowed';
+      }
     } else if (reserva?.estado === 'pendiente') {
-      // Celda con reserva pendiente (permite más solicitudes)
-      clasesCelda += 'bg-yellow-50 border-yellow-200 text-yellow-800 cursor-pointer hover:bg-yellow-100';
+      // Celda con reserva pendiente (permite más solicitudes) - si es pasada y admin, mostrar con menos opacidad
+      if (horaPasada && isAdmin()) {
+        clasesCelda += 'bg-yellow-100 border-yellow-300 text-yellow-600 cursor-not-allowed opacity-50';
+      } else {
+        clasesCelda += 'bg-yellow-50 border-yellow-200 text-yellow-800 cursor-pointer hover:bg-yellow-100';
+      }
     } else if (esHoraInicial) {
       // Hora inicial seleccionada
       clasesCelda += 'bg-black text-white font-bold cursor-pointer border-2 border-black';
@@ -215,11 +255,17 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       <td
         key={`${diaIndex}-${cancha}`}
         rowSpan={rowspan}
-        onClick={() => (!estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarClickCelda(dia, hora, disponible || reserva?.estado === 'pendiente', cancha)}
-        onMouseEnter={() => (!estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarMouseEnter(dia, hora)}
+        onClick={() => (!horaPasada && !estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarClickCelda(dia, hora, disponible || reserva?.estado === 'pendiente', cancha)}
+        onMouseEnter={() => (!horaPasada && !estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarMouseEnter(dia, hora)}
         className={clasesCelda}
       >
-        {estaBloqueada ? (
+        {horaPasada && (!reserva || !isAdmin()) ? (
+          <div className="text-[10px] md:text-xs">
+            <span className="font-semibold block uppercase tracking-wide text-[9px] md:text-[10px]">
+              No disponible
+            </span>
+          </div>
+        ) : estaBloqueada ? (
           <div className="text-[10px] md:text-xs">
             <div className="text-[9px] md:text-[10px] uppercase tracking-wide font-semibold text-gray-600">
               Reservado
@@ -295,6 +341,10 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
 
   const obtenerEstadoCelda = (fecha, hora, cancha) => {
     const fechaStr = format(fecha, 'yyyy-MM-dd');
+
+    // Verificar si la fecha/hora ya pasó
+    const horaPasada = esHoraPasada(fecha, hora);
+
     const disponible = verificarDisponibilidad(fechaStr, hora, cancha);
     // Los admins ven reservas pendientes, usuarios normales no
     const reserva = obtenerReservaEnSlot(fechaStr, hora, cancha, isAdmin());
@@ -323,7 +373,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       }
     }
 
-    return { disponible, reserva, estaBloqueada, canchasBloqueadas, canchaQueBloquea };
+    return { disponible, reserva, estaBloqueada, canchasBloqueadas, canchaQueBloquea, horaPasada };
   };
 
   const cancelarSeleccion = () => {

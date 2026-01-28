@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import logo from '../assets/logo-nuevo.png';
+import { useAuth } from '../context/AuthContext';
 
 const CampoPage = () => {
+  const { isAdmin } = useAuth();
   const [canchaHover, setCanchaHover] = useState(null);
   const [canchaSeleccionada, setCanchaSeleccionada] = useState(null); // Para móvil
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -321,14 +323,16 @@ const CampoPage = () => {
       <div className="container mx-auto px-2 md:px-4">
         <h1 className="text-2xl md:text-3xl font-bold text-center mb-3 md:mb-4">Nuestras Canchas</h1>
 
-        <div className="flex justify-center mb-3 md:mb-4">
-          <button
-            onClick={() => setModoEdicion(!modoEdicion)}
-            className={`px-3 md:px-4 py-2 rounded font-medium text-sm md:text-base ${modoEdicion ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-700'}`}
-          >
-            {modoEdicion ? 'Modo Edicion ON' : 'Activar Edicion'}
-          </button>
-        </div>
+        {isAdmin() && (
+          <div className="flex justify-center mb-3 md:mb-4">
+            <button
+              onClick={() => setModoEdicion(!modoEdicion)}
+              className={`px-3 md:px-4 py-2 rounded font-medium text-sm md:text-base ${modoEdicion ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-700'}`}
+            >
+              {modoEdicion ? 'Modo Edicion ON' : 'Activar Edicion'}
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-3 md:gap-4 justify-center">
           {modoEdicion && (
