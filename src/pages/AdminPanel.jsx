@@ -288,7 +288,7 @@ const AdminPanel = () => {
                         >
                           {reserva.estado === 'pendiente' ? 'Pendiente' : reserva.estado === 'confirmada' ? 'Confirmada' : 'Rechazada'}
                         </span>
-                        {!reserva.user_id && (
+                        {!reserva.userId && (
                           <span className="px-3 py-1 border border-gray-300 text-gray-500 text-[10px] font-semibold uppercase tracking-widest">
                             Sin cuenta
                           </span>
@@ -307,9 +307,9 @@ const AdminPanel = () => {
                         <p>
                           <span className="font-semibold">Precio:</span>{' '}
                           <span className="text-black font-bold">
-                            S/ {calcularPrecioReserva(reserva.cancha || 'principal', reserva.hora, reserva.hora_fin)}
-                            {reserva.hora_fin && (() => {
-                              const desglose = obtenerDesglosePrecio(reserva.cancha || 'principal', reserva.hora, reserva.hora_fin);
+                            S/ {calcularPrecioReserva(reserva.cancha || 'principal', reserva.hora, reserva.horaFin)}
+                            {reserva.horaFin && (() => {
+                              const desglose = obtenerDesglosePrecio(reserva.cancha || 'principal', reserva.hora, reserva.horaFin);
                               return <span className="text-xs text-gray-600 font-normal ml-1">({desglose.numHoras}h)</span>;
                             })()}
                           </span>
@@ -320,9 +320,9 @@ const AdminPanel = () => {
                         </p>
                         <p>
                           <span className="font-semibold">Horario:</span>{' '}
-                          {reserva.hora_fin ? (
+                          {reserva.horaFin ? (
                             <>
-                              {reserva.hora} - {reserva.hora_fin}
+                              {reserva.hora} - {reserva.horaFin}
                             </>
                           ) : (
                             <>{reserva.hora}</>

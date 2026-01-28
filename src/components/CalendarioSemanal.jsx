@@ -85,16 +85,15 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
 
     // Si es el día de hoy, verificar la hora
     if (isSameDay(fechaComparar, ahora)) {
-      const [horaSlot, minutoSlot] = hora.split(':').map(Number);
       const horaActual = ahora.getHours();
       const minutoActual = ahora.getMinutes();
 
       // Calcular la hora de fin del slot
       const horaFin = calcularHoraFin(hora);
-      const [horaFinSlot] = horaFin.split(':').map(Number);
+      const [horaFinSlot, minutoFinSlot] = horaFin.split(':').map(Number);
 
       // Si la hora de fin del slot ya pasó, entonces este slot ya no está disponible
-      if (horaFinSlot < horaActual || (horaFinSlot === horaActual && minutoActual > 0)) {
+      if (horaFinSlot < horaActual || (horaFinSlot === horaActual && minutoFinSlot <= minutoActual)) {
         return true;
       }
     }
