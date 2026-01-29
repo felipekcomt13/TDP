@@ -6,7 +6,7 @@ import { es } from 'date-fns/locale';
 import { obtenerNombreCancha, calcularPrecioReserva, obtenerDesglosePrecio } from '../utils/preciosCalculator';
 
 const ListaReservas = () => {
-  const { reservas, eliminarReserva, obtenerHorasEnRango, confirmarReserva, rechazarReserva } = useReservas();
+  const { reservas, eliminarReserva, obtenerHorasEnRango, rechazarReserva } = useReservas();
   const { user } = useAuth();
   const [filtro, setFiltro] = useState('todas'); // 'todas', 'proximas', 'pasadas', 'pendientes', 'confirmadas'
   const [busqueda, setBusqueda] = useState('');
@@ -243,22 +243,17 @@ const ListaReservas = () => {
                     </div>
                   </div>
 
-                  <div className="w-full md:w-auto md:ml-6 flex flex-row md:flex-col gap-2">
-                    {reserva.estado === 'pendiente' && (
+                  {/* Solo mostrar botón cancelar para reservas pendientes - las confirmadas solo pueden ser eliminadas por admins */}
+                  {reserva.estado === 'pendiente' && (
+                    <div className="w-full md:w-auto md:ml-6 flex flex-row md:flex-col gap-2">
                       <button
-                        onClick={() => confirmarReserva(reserva.id)}
-                        className="flex-1 md:flex-initial px-4 py-2 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+                        onClick={() => confirmarEliminacion(reserva)}
+                        className="flex-1 md:flex-initial px-4 py-2 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
                       >
-                        Confirmar
+                        Cancelar
                       </button>
-                    )}
-                    <button
-                      onClick={() => confirmarEliminacion(reserva)}
-                      className="flex-1 md:flex-initial px-4 py-2 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
-                    >
-                      {reserva.estado === 'pendiente' ? 'Rechazar' : 'Eliminar'}
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -271,7 +266,7 @@ const ListaReservas = () => {
         <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white max-w-md w-full p-8 border border-gray-200">
             <h2 className="text-2xl font-bold text-black mb-6 tracking-tight uppercase">
-              Confirmar {reservaAEliminar.estado === 'pendiente' ? 'rechazo' : 'eliminación'}
+              Confirmar cancelación
             </h2>
             <div className="mb-6 space-y-3">
               <div>
@@ -328,7 +323,7 @@ const ListaReservas = () => {
                 onClick={handleEliminar}
                 className="flex-1 px-6 py-3 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors uppercase"
               >
-                {reservaAEliminar.estado === 'pendiente' ? 'Rechazar' : 'Eliminar'}
+                Cancelar reserva
               </button>
             </div>
           </div>

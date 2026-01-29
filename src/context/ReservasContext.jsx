@@ -136,16 +136,36 @@ export const ReservasProvider = ({ children }) => {
 
   const eliminarReserva = async (id) => {
     try {
-      const { error } = await supabase
-        .from('reservas')
-        .delete()
-        .eq('id', id);
+      console.log('🔄 [ReservasContext] Intentando cancelar reserva con RPC:', {
+        reservaId: id,
+        userId: user?.id,
+        userEmail: user?.email,
+        profileRole: profile?.role,
+        isAdmin: profile?.role === 'admin',
+        metodo: 'RPC (cancelar_reserva)'
+      });
 
-      if (error) throw error;
+      // Usar RPC para validar permisos en el servidor
+      // - Usuarios solo pueden cancelar sus propias reservas PENDIENTES
+      // - Admins pueden cancelar cualquier reserva
+      const { data, error } = await supabase
+        .rpc('cancelar_reserva', { reserva_id: id });
 
+      if (error) {
+        console.error('❌ [ReservasContext] Error de Supabase RPC:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          error: error
+        });
+        throw error;
+      }
+
+      console.log('✅ [ReservasContext] Reserva cancelada exitosamente (RPC):', data);
       await cargarReservas();
     } catch (error) {
-      console.error('Error al eliminar reserva:', error);
+      console.error('❌ [ReservasContext] Error al cancelar reserva:', error);
       throw error;
     }
   };
