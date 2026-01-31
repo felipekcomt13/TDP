@@ -119,12 +119,12 @@ const LandingPage = () => {
                     WhatsApp
                   </p>
                   <a
-                    href="https://wa.me/51977510600"
+                    href="https://wa.me/51974341064"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-2xl font-bold text-black hover:text-gray-600 transition-colors"
                   >
-                    +51 977 510 600
+                    +51 974 341 064
                   </a>
                 </div>
 
