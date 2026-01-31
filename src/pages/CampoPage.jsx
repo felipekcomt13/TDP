@@ -319,8 +319,8 @@ const CampoPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-4 md:py-8">
-      <div className="container mx-auto px-2 md:px-4">
+    <div className="bg-gray-100 min-h-full py-4 md:py-8">
+      <div className="px-2 md:px-4">
         <h1 className="text-2xl md:text-3xl font-bold text-center mb-3 md:mb-4">Nuestras Canchas</h1>
 
         {isAdmin() && (

@@ -7,31 +7,12 @@ const ReservasPage = () => {
   const { isAdmin } = useAuth();
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-6 lg:px-8 py-12">
+    <div className="bg-white min-h-full">
+      <div className="px-6 lg:px-8 py-12">
         <div className="mb-12">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-5xl font-bold text-black tracking-tight">
-              MIS RESERVAS
-            </h1>
-
-            {isAdmin() && (
-              <div className="flex gap-3">
-                <button
-                  onClick={() => navigate('/admin')}
-                  className="px-6 py-3 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors uppercase"
-                >
-                  Panel Admin
-                </button>
-                <button
-                  onClick={() => navigate('/admin/usuarios')}
-                  className="px-6 py-3 border-2 border-black text-black text-sm font-medium tracking-wide hover:bg-black hover:text-white transition-colors uppercase"
-                >
-                  Gestionar Usuarios
-                </button>
-              </div>
-            )}
-          </div>
+          <h1 className="text-4xl font-bold text-black tracking-tight mb-2">
+            MIS RESERVAS
+          </h1>
           <p className="text-gray-600 text-sm tracking-wide">
             Gestiona y consulta tus reservas del complejo deportivo
           </p>
@@ -45,7 +26,7 @@ const ReservasPage = () => {
                 Panel de Administrador
               </p>
               <p className="text-sm">
-                Tienes permisos de administrador. Puedes gestionar todas las reservas y usuarios del sistema.
+                Tienes permisos de administrador. Accede al Panel Admin desde el menu lateral.
               </p>
             </div>
             <div className="flex gap-2">

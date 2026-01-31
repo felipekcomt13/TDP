@@ -92,25 +92,12 @@ const AdminPanel = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-12">
+    <div className="bg-white min-h-full">
+      <div className="px-4 md:px-6 lg:px-8 py-6 md:py-12">
         <div className="mb-8 md:mb-12">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-            <h1 className="text-3xl md:text-5xl font-bold text-black tracking-tight">
-              PANEL ADMIN
-            </h1>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-4 w-full sm:w-auto">
-              <button
-                onClick={() => navigate('/admin/usuarios')}
-                className="px-6 py-3 border border-gray-300 text-gray-700 text-sm font-medium tracking-wide hover:bg-gray-50 transition-colors uppercase"
-              >
-                Gestionar Usuarios
-              </button>
-              <div className="px-4 py-2 bg-black text-white text-xs font-semibold uppercase tracking-widest">
-                Administrador
-              </div>
-            </div>
-          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight mb-2">
+            RESERVAS
+          </h1>
           <p className="text-gray-600 text-sm tracking-wide">
             Gestiona todas las reservas del complejo deportivo
           </p>

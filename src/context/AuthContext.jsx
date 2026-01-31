@@ -14,6 +14,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [membresia, setMembresia] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export const AuthProvider = ({ children }) => {
         obtenerPerfil(session.user.id);
       } else {
         setProfile(null);
+        setMembresia(null);
         setLoading(false);
       }
     });
@@ -64,12 +66,20 @@ export const AuthProvider = ({ children }) => {
           setProfile(null);
         } else {
           setProfile(retryData);
+          // Cargar membresía si es socio
+          if (retryData?.es_socio) {
+            await obtenerMembresia(userId);
+          }
         }
       } else if (error) {
         console.error('Error al obtener perfil:', error);
         setProfile(null);
       } else {
         setProfile(data);
+        // Cargar membresía si es socio
+        if (data?.es_socio) {
+          await obtenerMembresia(userId);
+        }
       }
     } catch (error) {
       console.error('Error inesperado al obtener perfil:', error);
@@ -79,15 +89,38 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signUp = async (email, password, nombre) => {
+  const obtenerMembresia = async (userId) => {
     try {
-      // Pasar el nombre en los metadatos para que el trigger lo use
+      const { data, error } = await supabase
+        .from('membresias')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('estado', 'activa')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error al obtener membresía:', error);
+      }
+      setMembresia(data || null);
+    } catch (error) {
+      console.error('Error inesperado al obtener membresía:', error);
+      setMembresia(null);
+    }
+  };
+
+  const signUp = async (email, password, nombre, celular = '', dni = '') => {
+    try {
+      // Pasar el nombre, celular y dni en los metadatos para que el trigger lo use
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            nombre: nombre || email.split('@')[0]
+            nombre: nombre || email.split('@')[0],
+            celular: celular || null,
+            dni: dni || null
           }
         }
       });
@@ -143,15 +176,41 @@ export const AuthProvider = ({ children }) => {
     return !!user;
   };
 
+  const esSocio = () => {
+    return profile?.es_socio === true;
+  };
+
+  const diasRestantes = () => {
+    if (!membresia?.fecha_fin) return 0;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    // Agregar T12:00:00 para evitar problemas de zona horaria
+    const fechaFin = new Date(membresia.fecha_fin + 'T12:00:00');
+    fechaFin.setHours(0, 0, 0, 0);
+    const diferencia = fechaFin - hoy;
+    return Math.max(0, Math.ceil(diferencia / (1000 * 60 * 60 * 24)));
+  };
+
+  const recargarMembresia = async () => {
+    if (user?.id) {
+      await obtenerMembresia(user.id);
+      await obtenerPerfil(user.id);
+    }
+  };
+
   const value = {
     user,
     profile,
+    membresia,
     loading,
     signUp,
     signIn,
     signOut,
     isAdmin,
     isAuthenticated,
+    esSocio,
+    diasRestantes,
+    recargarMembresia,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

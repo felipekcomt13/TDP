@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm install)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(dir \"C:\\\\Repositorios\\\\TDP\" /s /b *.sql)"
     ],
     "deny": [],
     "ask": []

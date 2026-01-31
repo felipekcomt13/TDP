@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 
 const LandingPage = () => {
-  const { isAdmin } = useAuth();
   const pasos = [
     {
       numero: 1,
@@ -37,58 +35,26 @@ const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="bg-white">
       {/* Hero Section */}
-      <div className="bg-black text-white py-24">
-        <div className="container mx-auto px-6 lg:px-8 text-center">
+      <div className="bg-black text-white py-16 md:py-24">
+        <div className="px-6 lg:px-8 text-center">
           <div className="mb-4">
             <p className="text-xs uppercase tracking-[0.3em] text-gray-400 mb-2">
               Bienvenido a
             </p>
-            <h1 className="text-6xl md:text-7xl font-bold tracking-tight mb-6">
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
               COMPLEJO DEPORTIVO<br />TRIPLE DOBLE
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
               Reserva tu cancha de básquetbol de manera rápida y sencilla
             </p>
           </div>
         </div>
       </div>
 
-      {/* Panel de Admin - Solo visible para administradores */}
-      {isAdmin() && (
-        <div className="bg-black text-white py-8 border-y border-gray-800">
-          <div className="container mx-auto px-6 lg:px-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">
-                  Panel de Administrador
-                </p>
-                <p className="text-xl font-bold tracking-tight">
-                  Acceso Rápido a Herramientas de Gestión
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <Link
-                  to="/admin"
-                  className="px-6 py-3 bg-white text-black text-sm font-medium tracking-wide hover:bg-gray-200 transition-colors uppercase"
-                >
-                  Gestionar Reservas
-                </Link>
-                <Link
-                  to="/admin/usuarios"
-                  className="px-6 py-3 border border-white text-white text-sm font-medium tracking-wide hover:bg-white hover:text-black transition-colors uppercase"
-                >
-                  Gestionar Usuarios
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Cómo Reservar */}
-      <div className="container mx-auto px-6 lg:px-8 py-20">
+      <div className="px-6 lg:px-8 py-16 md:py-20">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-black mb-4 tracking-tight">
@@ -140,7 +106,7 @@ const LandingPage = () => {
 
       {/* Información de Contacto */}
       <div className="bg-gray-50 border-t border-gray-200 py-16">
-        <div className="container mx-auto px-6 lg:px-8">
+        <div className="px-6 lg:px-8">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl font-bold text-black mb-8 tracking-tight text-center uppercase">
               Información de Contacto
@@ -202,7 +168,7 @@ const LandingPage = () => {
 
       {/* Footer CTA */}
       <div className="bg-black text-white py-12 text-center">
-        <div className="container mx-auto px-6">
+        <div className="px-6">
           <p className="text-sm uppercase tracking-widest text-gray-400 mb-4">
             ¿Listo para jugar?
           </p>

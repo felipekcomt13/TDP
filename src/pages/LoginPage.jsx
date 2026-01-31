@@ -7,7 +7,9 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    nombre: ''
+    nombre: '',
+    celular: '',
+    dni: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -54,7 +56,21 @@ const LoginPage = () => {
           return;
         }
 
-        const { error } = await signUp(formData.email, formData.password, formData.nombre);
+        // Validar celular (9 dígitos, comienza con 9)
+        if (!/^9\d{8}$/.test(formData.celular.trim())) {
+          setError('El celular debe tener 9 dígitos y comenzar con 9');
+          setLoading(false);
+          return;
+        }
+
+        // Validar DNI (8 dígitos numéricos)
+        if (!/^\d{8}$/.test(formData.dni.trim())) {
+          setError('El DNI debe tener exactamente 8 dígitos');
+          setLoading(false);
+          return;
+        }
+
+        const { error } = await signUp(formData.email, formData.password, formData.nombre, formData.celular, formData.dni);
         if (error) {
           if (error.message.includes('already registered')) {
             setError('Este email ya está registrado');
@@ -67,7 +83,7 @@ const LoginPage = () => {
           }
         } else {
           setSuccessMessage('Cuenta creada exitosamente. Ya puedes iniciar sesión.');
-          setFormData({ email: '', password: '', nombre: '' });
+          setFormData({ email: '', password: '', nombre: '', celular: '', dni: '' });
         }
       }
     } catch (err) {
@@ -118,6 +134,46 @@ const LoginPage = () => {
                   placeholder="Juan Pérez"
                   required={!isLogin}
                 />
+              </div>
+            )}
+
+            {!isLogin && (
+              <div>
+                <label htmlFor="celular" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
+                  Número de celular *
+                </label>
+                <input
+                  type="tel"
+                  id="celular"
+                  name="celular"
+                  value={formData.celular}
+                  onChange={handleChange}
+                  className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                  placeholder="987654321"
+                  maxLength="9"
+                  required={!isLogin}
+                />
+                <p className="text-xs text-gray-500 mt-1">9 dígitos, comenzando con 9</p>
+              </div>
+            )}
+
+            {!isLogin && (
+              <div>
+                <label htmlFor="dni" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
+                  DNI *
+                </label>
+                <input
+                  type="text"
+                  id="dni"
+                  name="dni"
+                  value={formData.dni}
+                  onChange={handleChange}
+                  className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                  placeholder="12345678"
+                  maxLength="8"
+                  required={!isLogin}
+                />
+                <p className="text-xs text-gray-500 mt-1">8 dígitos</p>
               </div>
             )}
 
@@ -172,7 +228,7 @@ const LoginPage = () => {
                 setIsLogin(!isLogin);
                 setError('');
                 setSuccessMessage('');
-                setFormData({ email: '', password: '', nombre: '' });
+                setFormData({ email: '', password: '', nombre: '', celular: '', dni: '' });
               }}
               className="text-sm text-gray-600 hover:text-black transition-colors uppercase tracking-wide"
             >
