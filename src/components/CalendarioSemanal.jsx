@@ -73,10 +73,18 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
     return `${nuevaHora.toString().padStart(2, '0')}:${nuevoMinuto.toString().padStart(2, '0')}`;
   };
 
-  // Función para verificar si una fecha/hora ya pasó
+  // Fecha desde la cual se permiten reservas (día siguiente a la inauguración)
+  const FECHA_INICIO_RESERVAS = new Date(2026, 1, 16); // 16 de febrero de 2026 (mes 1 = febrero)
+
+  // Función para verificar si una fecha/hora ya pasó o está antes de la inauguración
   const esHoraPasada = (fecha, hora) => {
     const ahora = new Date();
     const fechaComparar = new Date(fecha);
+
+    // Bloquear todas las fechas antes de la inauguración
+    if (fechaComparar < FECHA_INICIO_RESERVAS) {
+      return true;
+    }
 
     // Si la fecha es anterior a hoy, ya pasó
     if (fechaComparar < new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate())) {
@@ -518,8 +526,28 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
     setRangoHover(null);
   };
 
+  // Verificar si estamos antes de la inauguración
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const antesDeInauguracion = hoy < FECHA_INICIO_RESERVAS;
+
   return (
     <div className="w-full">
+      {/* Banner de inauguración */}
+      {antesDeInauguracion && (
+        <div className="mb-6 bg-black text-white p-6 border-l-4 border-yellow-400">
+          <p className="text-[10px] uppercase tracking-widest text-yellow-400 mb-2 font-semibold">
+            Próxima Apertura
+          </p>
+          <p className="text-xl md:text-2xl font-bold mb-2">
+            Inauguración: 15 de Febrero 2026
+          </p>
+          <p className="text-sm text-gray-300">
+            Las reservas estarán disponibles a partir de esta fecha. ¡Te esperamos!
+          </p>
+        </div>
+      )}
+
       {/* Navegación de semanas */}
       <div className="flex items-center justify-between mb-6 md:mb-8 gap-2">
         <button
