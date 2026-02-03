@@ -39,11 +39,15 @@ const LoginPage = () => {
         const { error } = await signIn(formData.email, formData.password);
         if (error) {
           if (error.message === 'Invalid login credentials') {
-            setError('Credenciales inválidas');
+            setError('Email o contraseña incorrectos. Verifica tus datos e intenta de nuevo.');
+          } else if (error.message === 'Failed to fetch' || error.message?.includes('fetch')) {
+            setError('No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo.');
           } else if (error.status === 429) {
             setError('Demasiados intentos de inicio de sesión. Por favor espera unos minutos.');
+          } else if (error.message?.includes('network') || error.message?.includes('Network')) {
+            setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
           } else {
-            setError(`Error al iniciar sesión: ${error.message}`);
+            setError('No se pudo iniciar sesión. Intenta de nuevo más tarde.');
           }
         } else {
           navigate('/');
@@ -72,14 +76,18 @@ const LoginPage = () => {
 
         const { error } = await signUp(formData.email, formData.password, formData.nombre, formData.celular, formData.dni);
         if (error) {
-          if (error.message.includes('already registered')) {
+          if (error.message?.includes('already registered')) {
             setError('Este email ya está registrado');
-          } else if (error.message.includes('Email rate limit exceeded')) {
+          } else if (error.message?.includes('Email rate limit exceeded')) {
             setError('Demasiados intentos. Por favor espera unos minutos e intenta de nuevo.');
+          } else if (error.message === 'Failed to fetch' || error.message?.includes('fetch')) {
+            setError('No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo.');
           } else if (error.status === 429) {
             setError('Demasiadas solicitudes. Por favor espera 5-10 minutos antes de intentar nuevamente.');
+          } else if (error.message?.includes('network') || error.message?.includes('Network')) {
+            setError('Error de conexión. Verifica tu internet e intenta de nuevo.');
           } else {
-            setError(`Error al crear la cuenta: ${error.message}`);
+            setError('No se pudo crear la cuenta. Intenta de nuevo más tarde.');
           }
         } else {
           setSuccessMessage('Cuenta creada exitosamente. Ya puedes iniciar sesión.');
@@ -87,7 +95,11 @@ const LoginPage = () => {
         }
       }
     } catch (err) {
-      setError('Ocurrió un error inesperado');
+      if (err.message === 'Failed to fetch' || err.message?.includes('fetch')) {
+        setError('No se pudo conectar con el servidor. Verifica tu conexión a internet e intenta de nuevo.');
+      } else {
+        setError('Ocurrió un error inesperado. Intenta de nuevo más tarde.');
+      }
     } finally {
       setLoading(false);
     }

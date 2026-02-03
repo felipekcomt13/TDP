@@ -1,21 +1,16 @@
 /**
- * Utilidad para calcular precios de reservas según cancha y horario
+ * Utilidad para calcular precios de reservas según cancha y tipo de usuario
  *
  * Estructura de precios (POR HORA):
- * - Anexa 1 y Anexa 2: 50 soles/hora
- * - Principal mañana/tarde (8am - 5pm): 70 soles/hora
- * - Principal nocturno (después de 5pm): 80 soles/hora
+ * - Anexa 1 y Anexa 2: Socio S/ 40/hora, No Socio S/ 50/hora
+ * - Principal: Socio S/ 70/hora, No Socio S/ 80/hora
  */
 
-// Constantes de precios (por hora)
+// Constantes de precios (por hora) - diferenciados por tipo de usuario
 export const PRECIOS = {
-  ANEXA: 50,
-  PRINCIPAL_DIURNO: 70,
-  PRINCIPAL_NOCTURNO: 80
+  ANEXA: { SOCIO: 40, NO_SOCIO: 50 },
+  PRINCIPAL: { SOCIO: 70, NO_SOCIO: 80 }
 };
-
-// Hora límite para considerar horario nocturno (17:00 = 5pm)
-const HORA_LIMITE_NOCTURNO = 17;
 
 /**
  * Calcula el número de horas entre dos horarios
@@ -38,91 +33,52 @@ const calcularNumeroDeHoras = (horaInicio, horaFin) => {
 };
 
 /**
- * Obtiene el precio base por hora según cancha y horario
+ * Obtiene el precio base por hora según cancha y si es socio
  * @param {string} cancha - 'principal', 'anexa-1', o 'anexa-2'
- * @param {string} hora - Hora en formato 'HH:MM'
+ * @param {boolean} esSocio - Si el usuario es socio
  * @returns {number} Precio base por hora
  */
-const obtenerPrecioBase = (cancha, hora) => {
-  // Canchas anexas siempre cuestan 50 soles/hora
+const obtenerPrecioBase = (cancha, esSocio = false) => {
+  const tipoTarifa = esSocio ? 'SOCIO' : 'NO_SOCIO';
+
+  // Canchas anexas
   if (cancha === 'anexa-1' || cancha === 'anexa-2') {
-    return PRECIOS.ANEXA;
+    return PRECIOS.ANEXA[tipoTarifa];
   }
 
-  // Cancha principal: depende del horario
+  // Cancha principal
   if (cancha === 'principal') {
-    const horaNum = parseInt(hora.split(':')[0], 10);
-    return horaNum >= HORA_LIMITE_NOCTURNO ? PRECIOS.PRINCIPAL_NOCTURNO : PRECIOS.PRINCIPAL_DIURNO;
+    return PRECIOS.PRINCIPAL[tipoTarifa];
   }
 
   return 0;
 };
 
 /**
- * Calcula el precio para cancha principal con múltiples horas
- * (considerando cambio de horario diurno a nocturno)
- * @param {string} horaInicio - Hora en formato 'HH:MM'
- * @param {string} horaFin - Hora en formato 'HH:MM'
- * @returns {number} Precio total
- */
-const calcularPrecioPrincipalMultiHora = (horaInicio, horaFin) => {
-  const horaInicioNum = parseInt(horaInicio.split(':')[0], 10);
-  const horaFinNum = parseInt(horaFin.split(':')[0], 10);
-
-  // Si todo el rango es antes de 17:00 → todo diurno
-  if (horaFinNum <= HORA_LIMITE_NOCTURNO) {
-    const numHoras = calcularNumeroDeHoras(horaInicio, horaFin);
-    return PRECIOS.PRINCIPAL_DIURNO * numHoras;
-  }
-
-  // Si todo el rango es después de 17:00 → todo nocturno
-  if (horaInicioNum >= HORA_LIMITE_NOCTURNO) {
-    const numHoras = calcularNumeroDeHoras(horaInicio, horaFin);
-    return PRECIOS.PRINCIPAL_NOCTURNO * numHoras;
-  }
-
-  // Cruza horario: calcular horas diurnas y nocturnas
-  const horasDiurnas = HORA_LIMITE_NOCTURNO - horaInicioNum;
-  const horasNocturnas = horaFinNum - HORA_LIMITE_NOCTURNO;
-
-  return (PRECIOS.PRINCIPAL_DIURNO * horasDiurnas) + (PRECIOS.PRINCIPAL_NOCTURNO * horasNocturnas);
-};
-
-/**
- * Calcula el precio de una reserva según la cancha, hora inicio y hora fin
+ * Calcula el precio de una reserva según la cancha, horas y tipo de usuario
  * @param {string} cancha - 'principal', 'anexa-1', o 'anexa-2'
  * @param {string} horaInicio - Hora en formato 'HH:MM' (ej: '14:00', '18:00')
  * @param {string} horaFin - Hora fin en formato 'HH:MM' (opcional, default = 1 hora después)
+ * @param {boolean} esSocio - Si el usuario es socio (default: false)
  * @returns {number} Precio total en soles
  */
-export const calcularPrecioReserva = (cancha, horaInicio, horaFin = null) => {
+export const calcularPrecioReserva = (cancha, horaInicio, horaFin = null, esSocio = false) => {
   // Validar entrada
   if (!cancha || !horaInicio) {
-    console.error('calcularPrecioReserva: faltan parámetros', { cancha, horaInicio });
     return 0;
   }
 
+  const precioPorHora = obtenerPrecioBase(cancha, esSocio);
+
   // Si no hay horaFin, es 1 hora
   if (!horaFin) {
-    return obtenerPrecioBase(cancha, horaInicio);
+    return precioPorHora;
   }
 
   // Calcular número de horas
   const numHoras = calcularNumeroDeHoras(horaInicio, horaFin);
 
-  // Para canchas anexas, simplemente multiplicar
-  if (cancha === 'anexa-1' || cancha === 'anexa-2') {
-    return PRECIOS.ANEXA * numHoras;
-  }
-
-  // Para cancha principal, considerar cambio de horario diurno/nocturno
-  if (cancha === 'principal') {
-    return calcularPrecioPrincipalMultiHora(horaInicio, horaFin);
-  }
-
-  // Si la cancha no es válida, retornar 0
-  console.warn('calcularPrecioReserva: cancha no válida', cancha);
-  return 0;
+  return precioPorHora * numHoras;
 };
 
 /**
@@ -130,71 +86,32 @@ export const calcularPrecioReserva = (cancha, horaInicio, horaFin = null) => {
  * @param {string} cancha - 'principal', 'anexa-1', o 'anexa-2'
  * @param {string} horaInicio - Hora en formato 'HH:MM'
  * @param {string} horaFin - Hora fin en formato 'HH:MM' (opcional)
- * @returns {object} { precioTotal, numHoras, precioPorHora, desglose }
+ * @param {boolean} esSocio - Si el usuario es socio (default: false)
+ * @returns {object} { precioTotal, numHoras, precioPorHora, desglose, esTarifaSocio }
  */
-export const obtenerDesglosePrecio = (cancha, horaInicio, horaFin = null) => {
+export const obtenerDesglosePrecio = (cancha, horaInicio, horaFin = null, esSocio = false) => {
+  const precioPorHora = obtenerPrecioBase(cancha, esSocio);
+  const tipoTarifa = esSocio ? 'Tarifa Socio' : 'Tarifa Regular';
+
   if (!horaFin) {
-    const precioPorHora = obtenerPrecioBase(cancha, horaInicio);
     return {
       precioTotal: precioPorHora,
       numHoras: 1,
       precioPorHora,
-      desglose: `${precioPorHora} soles/hora × 1 hora`
+      desglose: `${precioPorHora} soles/hora × 1 hora`,
+      esTarifaSocio: esSocio
     };
   }
 
   const numHoras = calcularNumeroDeHoras(horaInicio, horaFin);
-  const precioTotal = calcularPrecioReserva(cancha, horaInicio, horaFin);
-
-  // Para anexas, es simple
-  if (cancha === 'anexa-1' || cancha === 'anexa-2') {
-    return {
-      precioTotal,
-      numHoras,
-      precioPorHora: PRECIOS.ANEXA,
-      desglose: `${PRECIOS.ANEXA} soles/hora × ${numHoras} horas`
-    };
-  }
-
-  // Para principal, puede ser mixto
-  if (cancha === 'principal') {
-    const horaInicioNum = parseInt(horaInicio.split(':')[0], 10);
-    const horaFinNum = parseInt(horaFin.split(':')[0], 10);
-
-    if (horaFinNum <= HORA_LIMITE_NOCTURNO) {
-      return {
-        precioTotal,
-        numHoras,
-        precioPorHora: PRECIOS.PRINCIPAL_DIURNO,
-        desglose: `${PRECIOS.PRINCIPAL_DIURNO} soles/hora × ${numHoras} horas (diurno)`
-      };
-    }
-
-    if (horaInicioNum >= HORA_LIMITE_NOCTURNO) {
-      return {
-        precioTotal,
-        numHoras,
-        precioPorHora: PRECIOS.PRINCIPAL_NOCTURNO,
-        desglose: `${PRECIOS.PRINCIPAL_NOCTURNO} soles/hora × ${numHoras} horas (nocturno)`
-      };
-    }
-
-    // Horario mixto
-    const horasDiurnas = HORA_LIMITE_NOCTURNO - horaInicioNum;
-    const horasNocturnas = horaFinNum - HORA_LIMITE_NOCTURNO;
-    return {
-      precioTotal,
-      numHoras,
-      precioPorHora: null, // mixto
-      desglose: `${horasDiurnas}h × ${PRECIOS.PRINCIPAL_DIURNO} (diurno) + ${horasNocturnas}h × ${PRECIOS.PRINCIPAL_NOCTURNO} (nocturno)`
-    };
-  }
+  const precioTotal = precioPorHora * numHoras;
 
   return {
-    precioTotal: 0,
-    numHoras: 0,
-    precioPorHora: 0,
-    desglose: 'Error en cálculo'
+    precioTotal,
+    numHoras,
+    precioPorHora,
+    desglose: `${precioPorHora} soles/hora × ${numHoras} hora${numHoras > 1 ? 's' : ''}`,
+    esTarifaSocio: esSocio
   };
 };
 
@@ -214,29 +131,11 @@ export const obtenerNombreCancha = (cancha) => {
 };
 
 /**
- * Determina si un horario es nocturno (después de 5pm)
- * @param {string} hora - Hora en formato 'HH:MM'
- * @returns {boolean}
- */
-export const esHorarioNocturno = (hora) => {
-  const horaNum = parseInt(hora.split(':')[0], 10);
-  return horaNum >= HORA_LIMITE_NOCTURNO;
-};
-
-/**
- * Obtiene el tipo de horario para mostrar al usuario
+ * Obtiene el tipo de tarifa para mostrar al usuario
  * @param {string} cancha - 'principal', 'anexa-1', o 'anexa-2'
- * @param {string} hora - Hora en formato 'HH:MM'
- * @returns {string} Descripción del horario
+ * @param {boolean} esSocio - Si el usuario es socio
+ * @returns {string} Descripción de la tarifa
  */
-export const obtenerTipoHorario = (cancha, hora) => {
-  if (cancha === 'anexa-1' || cancha === 'anexa-2') {
-    return 'Todo el día';
-  }
-
-  if (cancha === 'principal') {
-    return esHorarioNocturno(hora) ? 'Horario nocturno' : 'Horario diurno';
-  }
-
-  return '';
+export const obtenerTipoHorario = (cancha, esSocio = false) => {
+  return esSocio ? 'Tarifa Socio' : 'Tarifa Regular';
 };

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import logo from '../assets/logo-nuevo.png';
+import logo from '../assets/images/logo.png';
 import { useAuth } from '../context/AuthContext';
+import { PRECIOS } from '../utils/preciosCalculator';
 
 const CampoPage = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, esSocio, isAuthenticated } = useAuth();
   const [canchaHover, setCanchaHover] = useState(null);
   const [canchaSeleccionada, setCanchaSeleccionada] = useState(null); // Para móvil
   const [modoEdicion, setModoEdicion] = useState(false);
@@ -60,8 +61,8 @@ const CampoPage = () => {
         if (config.logoPos) setLogoPos(config.logoPos);
         if (config.logoSize) setLogoSize(config.logoSize);
         if (config.elementosVisibles) setElementosVisibles({ ...elementosVisiblesDefault, ...config.elementosVisibles });
-      } catch (e) {
-        console.error('Error cargando config:', e);
+      } catch {
+        // Error silenciado en producción
       }
     }
     setCargado(true);
@@ -320,7 +321,7 @@ const CampoPage = () => {
 
   return (
     <div className="bg-gray-100 min-h-full py-4 md:py-8">
-      <div className="px-2 md:px-4">
+      <div className="px-2 md:px-4 relative">
         <h1 className="text-2xl md:text-3xl font-bold text-center mb-3 md:mb-4">Nuestras Canchas</h1>
 
         {isAdmin() && (
@@ -331,6 +332,51 @@ const CampoPage = () => {
             >
               {modoEdicion ? 'Modo Edicion ON' : 'Activar Edicion'}
             </button>
+          </div>
+        )}
+
+        {/* Tabla de precios - Posición absoluta en desktop */}
+        {!modoEdicion && (
+          <div className="hidden lg:block absolute top-1/2 -translate-y-1/2 right-[12%] xl:right-[15%] bg-white rounded-lg shadow-lg p-3 z-10">
+            <h3 className="text-xs font-bold text-center mb-3 tracking-tight uppercase text-gray-700">
+              Tarifas/hora
+            </h3>
+
+            {isAuthenticated() && esSocio() && (
+              <div className="mb-2 px-2 py-1 bg-black text-white text-center text-[10px] font-medium">
+                ERES SOCIO
+              </div>
+            )}
+
+            <table className="text-xs w-full">
+              <thead>
+                <tr className="border-b border-gray-300">
+                  <th className="text-left py-1 pr-3 font-semibold text-gray-600"></th>
+                  <th className="text-center py-1 px-2 font-semibold text-gray-600">Regular</th>
+                  <th className="text-center py-1 pl-2 font-semibold text-gray-600">Socio</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-gray-100">
+                  <td className="py-2 pr-3 font-semibold text-gray-800">Principal</td>
+                  <td className={`text-center py-2 px-2 ${isAuthenticated() && !esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                    S/{PRECIOS.PRINCIPAL.NO_SOCIO}
+                  </td>
+                  <td className={`text-center py-2 pl-2 ${isAuthenticated() && esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                    S/{PRECIOS.PRINCIPAL.SOCIO}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-3 font-semibold text-gray-800">Anexas</td>
+                  <td className={`text-center py-2 px-2 ${isAuthenticated() && !esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                    S/{PRECIOS.ANEXA.NO_SOCIO}
+                  </td>
+                  <td className={`text-center py-2 pl-2 ${isAuthenticated() && esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                    S/{PRECIOS.ANEXA.SOCIO}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -446,7 +492,55 @@ const CampoPage = () => {
               </div>
             )}
           </div>
+
         </div>
+
+        {/* Tabla de precios - Versión móvil (debajo del visualizador) */}
+        {!modoEdicion && (
+          <div className="lg:hidden mt-4 flex justify-center">
+            <div className="bg-white rounded-lg shadow-lg p-3">
+              <h3 className="text-xs font-bold text-center mb-3 tracking-tight uppercase text-gray-700">
+                Tarifas/hora
+              </h3>
+
+              {isAuthenticated() && esSocio() && (
+                <div className="mb-2 px-2 py-1 bg-black text-white text-center text-[10px] font-medium">
+                  ERES SOCIO
+                </div>
+              )}
+
+              <table className="text-xs w-full">
+                <thead>
+                  <tr className="border-b border-gray-300">
+                    <th className="text-left py-1 pr-3 font-semibold text-gray-600"></th>
+                    <th className="text-center py-1 px-2 font-semibold text-gray-600">Regular</th>
+                    <th className="text-center py-1 pl-2 font-semibold text-gray-600">Socio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-2 pr-3 font-semibold text-gray-800">Principal</td>
+                    <td className={`text-center py-2 px-2 ${isAuthenticated() && !esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                      S/{PRECIOS.PRINCIPAL.NO_SOCIO}
+                    </td>
+                    <td className={`text-center py-2 pl-2 ${isAuthenticated() && esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                      S/{PRECIOS.PRINCIPAL.SOCIO}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-3 font-semibold text-gray-800">Anexas</td>
+                    <td className={`text-center py-2 px-2 ${isAuthenticated() && !esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                      S/{PRECIOS.ANEXA.NO_SOCIO}
+                    </td>
+                    <td className={`text-center py-2 pl-2 ${isAuthenticated() && esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                      S/{PRECIOS.ANEXA.SOCIO}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
