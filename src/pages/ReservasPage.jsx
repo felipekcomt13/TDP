@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import ListaReservas from '../components/ListaReservas';
+import ListaReservas from '../components/reservas/ListaReservas';
 
 const ReservasPage = () => {
   const navigate = useNavigate();

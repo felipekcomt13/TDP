@@ -1,15 +1,15 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ReservasProvider } from './context/ReservasContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import AppLayout from './components/AppLayout';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import AppLayout from './components/layout/AppLayout';
 import LandingPage from './pages/LandingPage';
 import HomePage from './pages/HomePage';
 import ReservasPage from './pages/ReservasPage';
 import LoginPage from './pages/LoginPage';
-import AdminPanel from './pages/AdminPanel';
-import GestionUsuarios from './pages/GestionUsuarios';
-import GestionMembresias from './pages/GestionMembresias';
+import AdminPanel from './pages/admin/AdminPanel';
+import GestionUsuarios from './pages/admin/GestionUsuarios';
+import GestionMembresias from './pages/admin/GestionMembresias';
 import MiMembresiaPage from './pages/MiMembresiaPage';
 import CampoPage from './pages/CampoPage';
 

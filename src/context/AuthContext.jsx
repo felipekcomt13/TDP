@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../services/supabase/client';
 
 const AuthContext = createContext();
 
@@ -62,7 +62,6 @@ export const AuthProvider = ({ children }) => {
           .single();
 
         if (retryError) {
-          console.error('Error al obtener perfil después de retry:', retryError);
           setProfile(null);
         } else {
           setProfile(retryData);
@@ -72,7 +71,6 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } else if (error) {
-        console.error('Error al obtener perfil:', error);
         setProfile(null);
       } else {
         setProfile(data);
@@ -81,8 +79,7 @@ export const AuthProvider = ({ children }) => {
           await obtenerMembresia(userId);
         }
       }
-    } catch (error) {
-      console.error('Error inesperado al obtener perfil:', error);
+    } catch {
       setProfile(null);
     } finally {
       setLoading(false);
@@ -101,11 +98,10 @@ export const AuthProvider = ({ children }) => {
         .single();
 
       if (error && error.code !== 'PGRST116') {
-        console.error('Error al obtener membresía:', error);
+        // Error silenciado en producción
       }
       setMembresia(data || null);
-    } catch (error) {
-      console.error('Error inesperado al obtener membresía:', error);
+    } catch {
       setMembresia(null);
     }
   };
@@ -156,20 +152,13 @@ export const AuthProvider = ({ children }) => {
       if (error) throw error;
       setUser(null);
       setProfile(null);
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
+    } catch {
+      // Error silenciado en producción
     }
   };
 
   const isAdmin = () => {
-    const esAdmin = profile?.role === 'admin';
-    console.log('🔍 [AuthContext] isAdmin check:', {
-      user: user?.email,
-      profile: profile,
-      role: profile?.role,
-      esAdmin: esAdmin
-    });
-    return esAdmin;
+    return profile?.role === 'admin';
   };
 
   const isAuthenticated = () => {

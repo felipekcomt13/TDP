@@ -3,7 +3,24 @@
     "allow": [
       "Bash(npm install)",
       "Bash(npm install:*)",
-      "Bash(dir \"C:\\\\Repositorios\\\\TDP\" /s /b *.sql)"
+      "Bash(dir \"C:\\\\Repositorios\\\\TDP\" /s /b *.sql)",
+      "Bash(dir:*)",
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)",
+      "Bash(where:*)",
+      "Bash(pip show:*)",
+      "Bash(python:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(npm run build:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(git checkout:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

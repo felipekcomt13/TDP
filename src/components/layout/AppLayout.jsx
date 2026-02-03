@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useReservas } from '../context/ReservasContext';
-import BadgeSocio from './BadgeSocio';
-import logo from '../assets/image.png';
+import { useAuth } from '../../context/AuthContext';
+import { useReservas } from '../../context/ReservasContext';
+import BadgeSocio from '../shared/BadgeSocio';
+import logo from '../../assets/images/logo.png';
 
 const AppLayout = ({ children }) => {
   const location = useLocation();

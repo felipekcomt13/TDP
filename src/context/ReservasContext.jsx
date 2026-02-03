@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../services/supabase/client';
 import { useAuth } from './AuthContext';
 
 const ReservasContext = createContext();
@@ -20,7 +20,7 @@ export const ReservasProvider = ({ children }) => {
     intervalo: 60, // minutos
     diasSemana: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
   });
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
 
   // Cargar reservas desde Supabase (todas para calendario, solo del usuario para "Mis Reservas")
   useEffect(() => {
@@ -29,8 +29,7 @@ export const ReservasProvider = ({ children }) => {
     // Suscribirse a cambios en tiempo real
     const subscription = supabase
       .channel('reservas_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, (payload) => {
-        console.log('🔔 [ReservasContext] Actualización en tiempo real recibida:', payload);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, () => {
         cargarReservas();
       })
       .subscribe();
@@ -65,193 +64,102 @@ export const ReservasProvider = ({ children }) => {
         diaSemana: r.dia_semana,
         estado: r.estado,
         notas: r.notas,
-        cancha: r.cancha || 'principal', // Default a principal para compatibilidad
-        deporte: r.deporte || 'basket', // Default a basket para compatibilidad
+        cancha: r.cancha || 'principal',
+        deporte: r.deporte || 'basket',
         fechaCreacion: r.created_at
       }));
 
       setReservas(reservasFormateadas);
-
-      // Log de debug para verificar actualizaciones
-      const pendientes = reservasFormateadas.filter(r => r.estado === 'pendiente').length;
-      console.log(`📊 [ReservasContext] Reservas cargadas: ${reservasFormateadas.length} total, ${pendientes} pendientes`);
-    } catch (error) {
-      console.error('Error al cargar reservas:', error);
+    } catch {
+      // Error silenciado en producción
     }
   };
 
   const agregarReserva = async (nuevaReserva) => {
-    try {
-      // Convertir de camelCase a snake_case para Supabase
-      const reservaParaDB = {
-        user_id: user?.id || null, // null para usuarios anónimos
-        nombre: nuevaReserva.nombre,
-        telefono: nuevaReserva.telefono || null,
-        email: nuevaReserva.email || null,
-        dni: nuevaReserva.dni,
-        fecha: nuevaReserva.fecha,
-        hora: nuevaReserva.hora,
-        hora_fin: nuevaReserva.horaFin || null,
-        dia_semana: nuevaReserva.diaSemana,
-        estado: nuevaReserva.estado || 'pendiente',
-        notas: nuevaReserva.notas || null,
-        cancha: nuevaReserva.cancha || 'principal', // Default a principal
-        deporte: nuevaReserva.deporte || 'basket' // Default a basket
-      };
+    // Convertir de camelCase a snake_case para Supabase
+    const reservaParaDB = {
+      user_id: user?.id || null,
+      nombre: nuevaReserva.nombre,
+      telefono: nuevaReserva.telefono || null,
+      email: nuevaReserva.email || null,
+      dni: nuevaReserva.dni,
+      fecha: nuevaReserva.fecha,
+      hora: nuevaReserva.hora,
+      hora_fin: nuevaReserva.horaFin || null,
+      dia_semana: nuevaReserva.diaSemana,
+      estado: nuevaReserva.estado || 'pendiente',
+      notas: nuevaReserva.notas || null,
+      cancha: nuevaReserva.cancha || 'principal',
+      deporte: nuevaReserva.deporte || 'basket'
+    };
 
-      const { data, error } = await supabase
-        .from('reservas')
-        .insert([reservaParaDB])
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from('reservas')
+      .insert([reservaParaDB])
+      .select()
+      .single();
 
-      if (error) throw error;
+    if (error) throw error;
 
-      // Recargar reservas
-      await cargarReservas();
+    // Recargar reservas
+    await cargarReservas();
 
-      // Devolver reserva formateada
-      return {
-        id: data.id,
-        userId: data.user_id,
-        nombre: data.nombre,
-        telefono: data.telefono,
-        email: data.email,
-        dni: data.dni,
-        fecha: data.fecha,
-        hora: data.hora,
-        horaFin: data.hora_fin,
-        diaSemana: data.dia_semana,
-        estado: data.estado,
-        notas: data.notas,
-        cancha: data.cancha || 'principal',
-        deporte: data.deporte || 'basket',
-        fechaCreacion: data.created_at
-      };
-    } catch (error) {
-      console.error('Error al agregar reserva:', error);
-      throw error;
-    }
+    // Devolver reserva formateada
+    return {
+      id: data.id,
+      userId: data.user_id,
+      nombre: data.nombre,
+      telefono: data.telefono,
+      email: data.email,
+      dni: data.dni,
+      fecha: data.fecha,
+      hora: data.hora,
+      horaFin: data.hora_fin,
+      diaSemana: data.dia_semana,
+      estado: data.estado,
+      notas: data.notas,
+      cancha: data.cancha || 'principal',
+      deporte: data.deporte || 'basket',
+      fechaCreacion: data.created_at
+    };
   };
 
   const eliminarReserva = async (id) => {
-    try {
-      console.log('🔄 [ReservasContext] Intentando cancelar reserva con RPC:', {
-        reservaId: id,
-        userId: user?.id,
-        userEmail: user?.email,
-        profileRole: profile?.role,
-        isAdmin: profile?.role === 'admin',
-        metodo: 'RPC (cancelar_reserva)'
-      });
+    const { error } = await supabase
+      .rpc('cancelar_reserva', { reserva_id: id });
 
-      // Usar RPC para validar permisos en el servidor
-      // - Usuarios solo pueden cancelar sus propias reservas PENDIENTES
-      // - Admins pueden cancelar cualquier reserva
-      const { data, error } = await supabase
-        .rpc('cancelar_reserva', { reserva_id: id });
+    if (error) throw error;
 
-      if (error) {
-        console.error('❌ [ReservasContext] Error de Supabase RPC:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          error: error
-        });
-        throw error;
-      }
-
-      console.log('✅ [ReservasContext] Reserva cancelada exitosamente (RPC):', data);
-      await cargarReservas();
-    } catch (error) {
-      console.error('❌ [ReservasContext] Error al cancelar reserva:', error);
-      throw error;
-    }
+    await cargarReservas();
   };
 
   const editarReserva = async (id, datosActualizados) => {
-    try {
-      const { error } = await supabase
-        .from('reservas')
-        .update(datosActualizados)
-        .eq('id', id);
+    const { error } = await supabase
+      .from('reservas')
+      .update(datosActualizados)
+      .eq('id', id);
 
-      if (error) throw error;
+    if (error) throw error;
 
-      await cargarReservas();
-    } catch (error) {
-      console.error('Error al editar reserva:', error);
-      throw error;
-    }
+    await cargarReservas();
   };
 
   const confirmarReserva = async (id) => {
-    try {
-      console.log('🔄 [ReservasContext] Intentando confirmar reserva con RPC:', {
-        reservaId: id,
-        userId: user?.id,
-        userEmail: user?.email,
-        profileRole: profile?.role,
-        isAdmin: profile?.role === 'admin',
-        metodo: 'RPC (confirmar_reserva)'
-      });
+    const { error } = await supabase
+      .rpc('confirmar_reserva', { reserva_id: id });
 
-      // Usar RPC en lugar de UPDATE para evitar error de CORS
-      const { data, error } = await supabase
-        .rpc('confirmar_reserva', { reserva_id: id });
+    if (error) throw error;
 
-      if (error) {
-        console.error('❌ [ReservasContext] Error de Supabase RPC:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          error: error
-        });
-        throw error;
-      }
-
-      console.log('✅ [ReservasContext] Reserva confirmada exitosamente (RPC):', data);
-      await cargarReservas();
-    } catch (error) {
-      console.error('❌ [ReservasContext] Error al confirmar reserva:', error);
-      throw error;
-    }
+    await cargarReservas();
   };
 
   const rechazarReserva = async (id) => {
-    try {
-      console.log('🔄 [ReservasContext] Intentando rechazar reserva con RPC:', {
-        reservaId: id,
-        userId: user?.id,
-        userEmail: user?.email,
-        profileRole: profile?.role,
-        isAdmin: profile?.role === 'admin',
-        metodo: 'RPC (rechazar_reserva)'
-      });
+    const { error } = await supabase
+      .rpc('rechazar_reserva', { reserva_id: id });
 
-      // Usar RPC en lugar de UPDATE para evitar error de CORS
-      const { data, error } = await supabase
-        .rpc('rechazar_reserva', { reserva_id: id });
+    if (error) throw error;
 
-      if (error) {
-        console.error('❌ [ReservasContext] Error de Supabase RPC:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-          error: error
-        });
-        throw error;
-      }
-
-      console.log('✅ [ReservasContext] Reserva rechazada exitosamente (RPC):', data);
-      await cargarReservas();
-    } catch (error) {
-      console.error('❌ [ReservasContext] Error al rechazar reserva:', error);
-      throw error;
-    }
+    await cargarReservas();
   };
 
   const obtenerReservasPorFecha = (fecha) => {

@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { useReservas } from '../context/ReservasContext';
-import { useAuth } from '../context/AuthContext';
-import { obtenerNombreCancha } from '../utils/preciosCalculator';
+import { useReservas } from '../../context/ReservasContext';
+import { useAuth } from '../../context/AuthContext';
+import { obtenerNombreCancha } from '../../utils/preciosCalculator';
 
 const CalendarioSemanal = ({ onSeleccionarHorario }) => {
   const [fechaActual, setFechaActual] = useState(new Date());

@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import CalendarioSemanal from '../components/CalendarioSemanal';
-import FormularioReserva from '../components/FormularioReserva';
+import CalendarioSemanal from '../components/reservas/CalendarioSemanal';
+import FormularioReserva from '../components/reservas/FormularioReserva';
 
 const HomePage = () => {
   const [horarioSeleccionado, setHorarioSeleccionado] = useState(null);
@@ -17,7 +17,7 @@ const HomePage = () => {
   };
 
   const handleReservaCreada = () => {
-    console.log('Reserva creada exitosamente');
+    // Callback para cuando se crea una reserva exitosamente
   };
 
   return (

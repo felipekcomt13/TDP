@@ -1,6 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import BadgeSocio from '../components/BadgeSocio';
+import BadgeSocio from '../components/shared/BadgeSocio';
 
 const MiMembresiaPage = () => {
   const { profile, membresia, esSocio, diasRestantes } = useAuth();

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
-import BadgeSocio from '../components/BadgeSocio';
+import { supabase } from '../../services/supabase/client';
+import BadgeSocio from '../../components/shared/BadgeSocio';
 
 const GestionMembresias = () => {
   const { isAdmin } = useAuth();
@@ -76,8 +76,7 @@ const GestionMembresias = () => {
       });
 
       setSocios(sociosConMembresia);
-    } catch (error) {
-      console.error('Error al cargar datos:', error);
+    } catch {
       mostrarMensaje('Error al cargar datos', 'error');
     } finally {
       setLoading(false);
@@ -105,7 +104,6 @@ const GestionMembresias = () => {
         mostrarMensaje(data.error || 'Error al activar membresía', 'error');
       }
     } catch (error) {
-      console.error('Error al activar membresía:', error);
       mostrarMensaje('Error al activar membresía: ' + error.message, 'error');
     }
   };
@@ -127,7 +125,6 @@ const GestionMembresias = () => {
         mostrarMensaje(data.error || 'Error al desactivar membresía', 'error');
       }
     } catch (error) {
-      console.error('Error al desactivar membresía:', error);
       mostrarMensaje('Error al desactivar membresía: ' + error.message, 'error');
     }
   };

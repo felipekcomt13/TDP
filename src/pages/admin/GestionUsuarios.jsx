@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
-import BadgeSocio from '../components/BadgeSocio';
+import { supabase } from '../../services/supabase/client';
+import BadgeSocio from '../../components/shared/BadgeSocio';
 
 const GestionUsuarios = () => {
   const { isAdmin } = useAuth();
@@ -38,8 +38,7 @@ const GestionUsuarios = () => {
 
       if (error) throw error;
       setUsuarios(data);
-    } catch (error) {
-      console.error('Error al cargar usuarios:', error);
+    } catch {
       mostrarMensaje('Error al cargar usuarios', 'error');
     } finally {
       setLoading(false);
@@ -61,7 +60,6 @@ const GestionUsuarios = () => {
       );
       await cargarUsuarios();
     } catch (error) {
-      console.error('Error al cambiar rol:', error);
       const mensajeError = error.message || 'No se pudo cambiar el rol del usuario';
       mostrarMensaje(`Error: ${mensajeError}`, 'error');
     }
@@ -88,7 +86,6 @@ const GestionUsuarios = () => {
         mostrarMensaje(data.error || 'Error al activar socio', 'error');
       }
     } catch (error) {
-      console.error('Error al activar socio:', error);
       mostrarMensaje('Error al activar socio: ' + error.message, 'error');
     }
   };
@@ -110,7 +107,6 @@ const GestionUsuarios = () => {
         mostrarMensaje(data.error || 'Error al quitar socio', 'error');
       }
     } catch (error) {
-      console.error('Error al quitar socio:', error);
       mostrarMensaje('Error al quitar socio: ' + error.message, 'error');
     }
   };
