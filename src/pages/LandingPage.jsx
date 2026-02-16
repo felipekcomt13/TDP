@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useHeroConfig } from '../context/HeroConfigContext';
 
@@ -15,8 +16,18 @@ const esGoogleDrive = (url) => url && url.includes('drive.google.com');
 
 const LandingPage = () => {
   const { heroConfig } = useHeroConfig();
+  const videoRef = useRef(null);
+  const [muteado, setMuteado] = useState(true);
 
   const videoActivo = heroConfig.video_activo && heroConfig.video_url;
+  const esVideoNativo = videoActivo && !esGoogleDrive(heroConfig.video_url);
+
+  const toggleAudio = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setMuteado(videoRef.current.muted);
+    }
+  };
 
   const pasos = [
     {
@@ -68,6 +79,7 @@ const LandingPage = () => {
               />
             ) : (
               <video
+                ref={videoRef}
                 src={heroConfig.video_url}
                 className="absolute inset-0 w-full h-full object-cover"
                 autoPlay
@@ -77,6 +89,27 @@ const LandingPage = () => {
               />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/30" />
+            {esVideoNativo && (
+              <button
+                onClick={toggleAudio}
+                className="absolute bottom-4 right-4 z-10 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+                aria-label={muteado ? 'Activar audio' : 'Silenciar audio'}
+              >
+                {muteado ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <line x1="23" y1="9" x2="17" y2="15" />
+                    <line x1="17" y1="9" x2="23" y2="15" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  </svg>
+                )}
+              </button>
+            )}
           </>
         ) : (
           <>
@@ -97,7 +130,7 @@ const LandingPage = () => {
         )}
 
         {/* Contenido del hero */}
-        <div className={`px-4 sm:px-6 lg:px-8 text-center relative z-10 ${videoActivo ? 'absolute inset-x-0 top-0 bottom-0 flex items-center justify-center pt-10 sm:pt-14 md:pt-16' : ''}`}>
+        <div className={`px-4 sm:px-6 lg:px-8 text-center relative z-10 ${videoActivo ? 'absolute inset-x-0 top-0 bottom-0 flex items-center justify-center pt-24 sm:pt-28 md:pt-32' : ''}`}>
           <div>
             <p className={`text-[10px] sm:text-xs uppercase tracking-[0.3em] mb-2 sm:mb-3 animate-stagger-1 ${videoActivo ? 'text-gray-200 drop-shadow-lg' : 'text-gray-400'}`}>
               Bienvenido a
@@ -109,12 +142,14 @@ const LandingPage = () => {
               Reserva tu cancha de básquetbol de manera rápida y sencilla
             </p>
             {videoActivo && (
-              <Link
-                to="/reservar"
+              <a
+                href="https://wa.me/51974341064?text=Quiero%20participar%20en%20el%203%20x%203"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="mt-6 sm:mt-8 inline-block px-8 sm:px-12 py-3 sm:py-4 bg-white text-black text-xs sm:text-sm font-bold tracking-widest uppercase hover:bg-gray-200 transition-all shadow-lg hover:shadow-xl animate-stagger-3"
               >
-                RESERVAR AHORA
-              </Link>
+                PARTICIPAR AHORA
+              </a>
             )}
           </div>
         </div>
