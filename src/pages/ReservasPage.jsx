@@ -18,31 +18,16 @@ const ReservasPage = () => {
           </p>
         </div>
 
-        {/* Banner informativo para admins */}
+        {/* Link rápido al panel admin */}
         {isAdmin() && (
-          <div className="mb-8 bg-black text-white p-6 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">
-                Panel de Administrador
-              </p>
-              <p className="text-sm">
-                Tienes permisos de administrador. Accede al Panel Admin desde el menu lateral.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => navigate('/admin')}
-                className="px-4 py-2 bg-white text-black text-xs font-medium tracking-wide hover:bg-gray-200 transition-colors uppercase"
-              >
-                Ver Reservas
-              </button>
-              <button
-                onClick={() => navigate('/admin/usuarios')}
-                className="px-4 py-2 border border-white text-white text-xs font-medium tracking-wide hover:bg-white hover:text-black transition-colors uppercase"
-              >
-                Ver Usuarios
-              </button>
-            </div>
+          <div className="mb-6 flex items-center gap-3 text-xs text-gray-400">
+            <span>Admin:</span>
+            <button
+              onClick={() => navigate('/admin')}
+              className="underline hover:text-black transition-colors"
+            >
+              Gestionar reservas
+            </button>
           </div>
         )}
 

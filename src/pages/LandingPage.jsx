@@ -1,6 +1,23 @@
 import { Link } from 'react-router-dom';
+import { useHeroConfig } from '../context/HeroConfigContext';
+
+const getGoogleDriveEmbedUrl = (url) => {
+  if (!url) return null;
+  // Formato: drive.google.com/file/d/ID/... o drive.google.com/uc?...id=ID
+  const matchFile = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (matchFile) return `https://drive.google.com/file/d/${matchFile[1]}/preview`;
+  const matchUc = url.match(/drive\.google\.com\/uc\?.*id=([^&]+)/);
+  if (matchUc) return `https://drive.google.com/file/d/${matchUc[1]}/preview`;
+  return null;
+};
+
+const esGoogleDrive = (url) => url && url.includes('drive.google.com');
 
 const LandingPage = () => {
+  const { heroConfig } = useHeroConfig();
+
+  const videoActivo = heroConfig.video_activo && heroConfig.video_url;
+
   const pasos = [
     {
       numero: 1,
@@ -37,18 +54,68 @@ const LandingPage = () => {
   return (
     <div className="bg-white">
       {/* Hero Section */}
-      <div className="bg-black text-white py-16 md:py-24">
-        <div className="px-6 lg:px-8 text-center">
-          <div className="mb-4">
-            <p className="text-xs uppercase tracking-[0.3em] text-gray-400 mb-2">
+      <div className={`relative overflow-hidden text-white ${videoActivo ? 'h-[50vh] sm:h-[60vh] md:h-[70vh] lg:h-[80vh]' : 'py-20 md:py-32'}`}>
+        {/* Fondo: video o gradiente */}
+        {videoActivo ? (
+          <>
+            {esGoogleDrive(heroConfig.video_url) ? (
+              <iframe
+                src={getGoogleDriveEmbedUrl(heroConfig.video_url)}
+                className="absolute inset-0 w-full h-full scale-150 pointer-events-none"
+                allow="autoplay"
+                frameBorder="0"
+                title="Video hero"
+              />
+            ) : (
+              <video
+                src={heroConfig.video_url}
+                className="absolute inset-0 w-full h-full object-cover"
+                autoPlay
+                loop
+                muted
+                playsInline
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-black/30" />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-black" />
+            {/* Subtle court lines pattern */}
+            <div className="absolute inset-0 opacity-[0.04]">
+              <svg className="w-full h-full" viewBox="0 0 800 400" preserveAspectRatio="xMidYMid slice">
+                <rect x="100" y="50" width="600" height="300" fill="none" stroke="white" strokeWidth="2"/>
+                <line x1="400" y1="50" x2="400" y2="350" stroke="white" strokeWidth="2"/>
+                <circle cx="400" cy="200" r="60" fill="none" stroke="white" strokeWidth="2"/>
+                <rect x="100" y="140" width="80" height="120" fill="none" stroke="white" strokeWidth="2"/>
+                <rect x="620" y="140" width="80" height="120" fill="none" stroke="white" strokeWidth="2"/>
+                <path d="M 180 140 A 60 60 0 0 1 180 260" fill="none" stroke="white" strokeWidth="2"/>
+                <path d="M 620 140 A 60 60 0 0 0 620 260" fill="none" stroke="white" strokeWidth="2"/>
+              </svg>
+            </div>
+          </>
+        )}
+
+        {/* Contenido del hero */}
+        <div className={`px-4 sm:px-6 lg:px-8 text-center relative z-10 ${videoActivo ? 'absolute inset-x-0 top-0 bottom-0 flex items-center justify-center pt-10 sm:pt-14 md:pt-16' : ''}`}>
+          <div>
+            <p className={`text-[10px] sm:text-xs uppercase tracking-[0.3em] mb-2 sm:mb-3 animate-stagger-1 ${videoActivo ? 'text-gray-200 drop-shadow-lg' : 'text-gray-400'}`}>
               Bienvenido a
             </p>
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
+            <h1 className={`text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6 font-display animate-stagger-2 ${videoActivo ? 'drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]' : ''}`}>
               COMPLEJO DEPORTIVO<br />TRIPLE DOBLE
             </h1>
-            <p className="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+            <p className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto leading-relaxed animate-stagger-3 ${videoActivo ? 'text-gray-100 drop-shadow-lg' : 'text-gray-300'}`}>
               Reserva tu cancha de básquetbol de manera rápida y sencilla
             </p>
+            {videoActivo && (
+              <Link
+                to="/reservar"
+                className="mt-6 sm:mt-8 inline-block px-8 sm:px-12 py-3 sm:py-4 bg-white text-black text-xs sm:text-sm font-bold tracking-widest uppercase hover:bg-gray-200 transition-all shadow-lg hover:shadow-xl animate-stagger-3"
+              >
+                RESERVAR AHORA
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -67,7 +134,7 @@ const LandingPage = () => {
 
           {/* Pasos */}
           <div className="space-y-8">
-            {pasos.map((paso, index) => (
+            {pasos.map((paso) => (
               <div
                 key={paso.numero}
                 className="flex gap-6 items-start p-6 bg-gray-50 border-l-2 border-black hover:shadow-md transition-shadow"
@@ -93,7 +160,7 @@ const LandingPage = () => {
           <div className="text-center mt-16">
             <Link
               to="/reservar"
-              className="inline-block px-16 py-5 bg-black text-white text-lg font-bold tracking-widest uppercase hover:bg-gray-800 transition-colors"
+              className="inline-block px-16 py-5 bg-black text-white text-lg font-bold tracking-widest uppercase hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl"
             >
               RESERVAR AHORA
             </Link>
@@ -115,7 +182,7 @@ const LandingPage = () => {
             <div className="bg-white border-l-2 border-black p-8">
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                  <p className="text-xs font-semibold text-gray-500 mb-2">
                     WhatsApp
                   </p>
                   <a
@@ -129,7 +196,7 @@ const LandingPage = () => {
                 </div>
 
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                  <p className="text-xs font-semibold text-gray-500 mb-2">
                     Tarifa
                   </p>
                   <p className="text-2xl font-bold text-black">
@@ -139,7 +206,7 @@ const LandingPage = () => {
               </div>
 
               <div className="mt-8 pt-8 border-t border-gray-200">
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-semibold">
+                <p className="text-xs font-semibold text-gray-500 mb-3">
                   Importante
                 </p>
                 <ul className="space-y-2 text-sm text-gray-700">
@@ -174,7 +241,7 @@ const LandingPage = () => {
           </p>
           <Link
             to="/reservar"
-            className="inline-block px-12 py-4 bg-white text-black font-bold text-sm tracking-widest uppercase hover:bg-gray-200 transition-colors"
+            className="inline-block px-12 py-4 bg-white text-black font-bold text-sm tracking-widest uppercase hover:bg-gray-200 transition-all shadow-lg hover:shadow-xl"
           >
             IR AL CALENDARIO
           </Link>

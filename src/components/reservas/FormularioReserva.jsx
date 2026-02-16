@@ -19,6 +19,8 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
   const [redirigiendo, setRedirigiendo] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [urlWhatsApp, setUrlWhatsApp] = useState('');
+  const [mensajeWhatsApp, setMensajeWhatsApp] = useState('');
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     if (horarioSeleccionado) {
@@ -174,6 +176,9 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
         mensaje += `• Notas: ${formData.notas}\n`;
       }
 
+      // Guardar mensaje sin codificar para copiar
+      setMensajeWhatsApp(mensaje);
+
       // Codificar mensaje para URL
       const mensajeCodificado = encodeURIComponent(mensaje);
       const numeroWhatsApp = '51974341064'; // Número de WhatsApp del complejo (PROD)
@@ -224,8 +229,8 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
   // Si está redirigiendo, mostrar mensaje de countdown
   if (redirigiendo) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div className="bg-white max-w-md w-full p-12 text-center border border-gray-200">
+      <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+        <div className="bg-white max-w-md w-full p-12 text-center border border-gray-200 animate-scaleIn">
           <div className="mb-8">
             <div className="w-24 h-24 bg-black flex items-center justify-center mx-auto mb-6">
               <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -251,24 +256,38 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
               ></div>
             </div>
           </div>
-          <button
-            onClick={() => {
-              setRedirigiendo(false);
-              setCountdown(5);
-              onCerrar();
-            }}
-            className="px-8 py-3 border border-gray-300 text-gray-700 text-sm font-medium tracking-wide hover:bg-gray-50 transition-colors uppercase"
-          >
-            Cancelar
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(mensajeWhatsApp).then(() => {
+                  setCopiado(true);
+                  setTimeout(() => setCopiado(false), 2000);
+                });
+              }}
+              className="px-6 py-3 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors uppercase"
+            >
+              {copiado ? 'Copiado' : 'Copiar mensaje'}
+            </button>
+            <button
+              onClick={() => {
+                setRedirigiendo(false);
+                setCountdown(5);
+                setCopiado(false);
+                onCerrar();
+              }}
+              className="px-6 py-3 border border-gray-300 text-gray-700 text-sm font-medium tracking-wide hover:bg-gray-50 transition-colors uppercase"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white max-w-lg w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+      <div className="bg-white max-w-lg w-full max-h-[90vh] overflow-y-auto border border-gray-200 animate-scaleIn">
         <div className="sticky top-0 bg-white z-10 p-6 pb-4 border-b border-gray-100">
           <div className="flex justify-between items-start">
             <div>
@@ -288,12 +307,12 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
           <div className="bg-gray-50 border-l-2 border-black p-4 mb-4">
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Cancha</p>
+              <p className="text-xs font-medium text-gray-500 mb-1">Cancha</p>
               <p className="font-bold text-black">{nombreCancha}</p>
               <p className="text-[9px] text-gray-600 uppercase mt-0.5">{tipoHorario}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Fecha</p>
+              <p className="text-xs font-medium text-gray-500 mb-1">Fecha</p>
               <p className="font-medium text-black">
                 {new Date(horarioSeleccionado.fecha + 'T00:00:00').toLocaleDateString('es-ES', {
                   day: 'numeric',
@@ -303,7 +322,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
               </p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Horario</p>
+              <p className="text-xs font-medium text-gray-500 mb-1">Horario</p>
               <p className="font-medium text-black">
                 {horarioSeleccionado.horaFin ? (
                   <>{horarioSeleccionado.horaInicio} - {horarioSeleccionado.horaFin}</>
@@ -317,7 +336,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
 
         {/* Selector de deporte */}
         <div className="mb-4">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">Deporte</p>
+          <p className="text-xs font-medium text-gray-500 mb-2">Deporte</p>
           <div className="flex gap-2">
             <button
               type="button"
@@ -351,40 +370,26 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="nombre" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
-              Nombre completo *
-            </label>
-            <input
-              type="text"
-              id="nombre"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-              className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
-              placeholder="Juan Pérez"
-              required
-            />
-          </div>
-
+          {/* Datos obligatorios */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="telefono" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
-                Teléfono
+              <label htmlFor="nombre" className="block text-xs font-medium text-gray-500 mb-2">
+                Nombre completo *
               </label>
               <input
-                type="tel"
-                id="telefono"
-                name="telefono"
-                value={formData.telefono}
+                type="text"
+                id="nombre"
+                name="nombre"
+                value={formData.nombre}
                 onChange={handleChange}
                 className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
-                placeholder="999 999 999"
+                placeholder="Juan Pérez"
+                required
               />
             </div>
 
             <div>
-              <label htmlFor="dni" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
+              <label htmlFor="dni" className="block text-xs font-medium text-gray-500 mb-2">
                 DNI *
               </label>
               <input
@@ -402,24 +407,42 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
             </div>
           </div>
 
-          <div>
-            <label htmlFor="email" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
-              placeholder="correo@ejemplo.com"
-            />
+          {/* Datos de contacto */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="telefono" className="block text-xs font-medium text-gray-500 mb-2">
+                Teléfono <span className="text-gray-400">(opcional)</span>
+              </label>
+              <input
+                type="tel"
+                id="telefono"
+                name="telefono"
+                value={formData.telefono}
+                onChange={handleChange}
+                className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                placeholder="999 999 999"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-xs font-medium text-gray-500 mb-2">
+                Email <span className="text-gray-400">(opcional)</span>
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                placeholder="correo@ejemplo.com"
+              />
+            </div>
           </div>
 
           <div>
-            <label htmlFor="notas" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
-              Notas adicionales
+            <label htmlFor="notas" className="block text-xs font-medium text-gray-500 mb-2">
+              Notas adicionales <span className="text-gray-400">(opcional)</span>
             </label>
             <textarea
               id="notas"
@@ -435,7 +458,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
           {/* Sección de costo total */}
           <div className="bg-gray-50 border-l-2 border-black p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">
+              <h3 className="text-xs font-semibold text-gray-500">
                 Total a pagar
               </h3>
               {usuarioEsSocio && (
@@ -445,7 +468,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
               )}
             </div>
             <div className="mb-4">
-              <p className="text-xs text-gray-600 mb-1 uppercase tracking-wide">
+              <p className="text-xs text-gray-600 mb-1 font-medium">
                 {nombreCancha}
               </p>
               <p className="text-xs text-gray-500 mb-2">
@@ -473,7 +496,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
             </button>
             <button
               type="submit"
-              className="flex-1 px-6 py-3 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors uppercase disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl uppercase disabled:bg-gray-400 disabled:cursor-not-allowed disabled:shadow-none"
               disabled={loading}
             >
               {loading ? 'Procesando...' : 'Confirmar'}

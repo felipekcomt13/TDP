@@ -177,35 +177,25 @@ const GestionUsuarios = () => {
           </div>
         )}
 
-        {/* Estadísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gray-50 border-l-2 border-black p-6">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Total Usuarios</p>
-            <p className="text-3xl font-bold text-black">{usuarios.length}</p>
+        {/* Toolbar: Buscar + Contadores */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="flex-1 relative">
+            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar por nombre o email..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 focus:border-black focus:outline-none bg-white text-black placeholder-gray-400 text-sm transition-colors"
+            />
           </div>
-          <div className="bg-gray-50 border-l-2 border-black p-6">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Administradores</p>
-            <p className="text-3xl font-bold text-black">{contarPorRol('admin')}</p>
+          <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400">
+            <span>{usuarios.length} total</span>
+            <span>{contarPorRol('admin')} admins</span>
+            <span className="text-green-500">{contarSocios()} socios</span>
           </div>
-          <div className="bg-gray-50 border-l-2 border-green-600 p-6">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Socios Activos</p>
-            <p className="text-3xl font-bold text-green-600">{contarSocios()}</p>
-          </div>
-          <div className="bg-gray-50 border-l-2 border-gray-400 p-6">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Usuarios</p>
-            <p className="text-3xl font-bold text-gray-700">{contarPorRol('user')}</p>
-          </div>
-        </div>
-
-        {/* Búsqueda */}
-        <div className="mb-8">
-          <input
-            type="text"
-            placeholder="BUSCAR POR NOMBRE O EMAIL"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full px-0 py-3 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 text-sm tracking-wide transition-colors"
-          />
         </div>
 
         {/* Lista de usuarios */}

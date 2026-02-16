@@ -208,36 +208,28 @@ const GestionMembresias = () => {
           </div>
         )}
 
-        {/* Estadísticas */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-gray-50 border-l-2 border-black p-6">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Socios Activos</p>
-            <p className="text-3xl font-bold text-black">{socios.length}</p>
-          </div>
-          <div className="bg-gray-50 border-l-2 border-yellow-500 p-6">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Por Vencer (7 días)</p>
-            <p className="text-3xl font-bold text-yellow-600">
-              {socios.filter(s => calcularDiasRestantes(s.fecha_fin) <= 7).length}
-            </p>
-          </div>
-          <div className="bg-gray-50 border-l-2 border-gray-400 p-6">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">Total Usuarios</p>
-            <p className="text-3xl font-bold text-gray-700">{usuarios.length}</p>
-          </div>
-        </div>
-
         {/* Socios Activos */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-black tracking-tight mb-6">
-            SOCIOS ACTIVOS
-          </h2>
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-2xl font-bold text-black tracking-tight">
+              SOCIOS ACTIVOS
+            </h2>
+            <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400">
+              <span>{socios.length} socios</span>
+              {socios.filter(s => calcularDiasRestantes(s.fecha_fin) <= 7).length > 0 && (
+                <span className="text-yellow-500">
+                  {socios.filter(s => calcularDiasRestantes(s.fecha_fin) <= 7).length} por vencer
+                </span>
+              )}
+            </div>
+          </div>
 
           {socios.length === 0 ? (
             <div className="text-center py-16 border border-gray-200">
-              <p className="text-gray-400 text-sm uppercase tracking-widest">No hay socios activos</p>
+              <p className="text-gray-400 text-sm">No hay socios activos</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {socios.map((socio) => {
                 const diasRestantes = calcularDiasRestantes(socio.fecha_fin);
                 const colorDias = diasRestantes <= 7 ? 'text-red-600' : diasRestantes <= 15 ? 'text-yellow-600' : 'text-green-600';
@@ -245,48 +237,50 @@ const GestionMembresias = () => {
                 return (
                   <div
                     key={socio.id}
-                    className="bg-white border border-black p-6 transition-all hover:shadow-md"
+                    className={`border p-4 md:p-5 transition-all ${
+                      diasRestantes <= 7 ? 'border-red-200 bg-red-50/30' : 'border-gray-200 hover:border-gray-400'
+                    }`}
                   >
-                    <div className="flex justify-between items-center">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h3 className="text-xl font-bold text-black tracking-tight">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
+                      {/* Días restantes visual */}
+                      <div className="hidden md:flex flex-col items-center justify-center w-16 flex-shrink-0">
+                        <span className={`text-2xl font-bold leading-none ${colorDias}`}>
+                          {diasRestantes}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-widest text-gray-400">
+                          días
+                        </span>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                          <h3 className="text-base font-bold text-black tracking-tight">
                             {socio.profiles?.nombre || 'Sin nombre'}
                           </h3>
                           <BadgeSocio />
+                          <span className={`md:hidden text-xs font-bold ${colorDias}`}>
+                            {diasRestantes} días
+                          </span>
                         </div>
-
-                        <div className="grid grid-cols-4 gap-4 text-sm text-gray-600">
-                          <p>
-                            <span className="font-semibold">Email:</span> {socio.profiles?.email}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Inicio:</span> {formatearFecha(socio.fecha_inicio)}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Fin:</span> {formatearFecha(socio.fecha_fin)}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Días:</span>{' '}
-                            <span className={`font-bold ${colorDias}`}>{diasRestantes}</span>
-                          </p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                          <span>{socio.profiles?.email}</span>
+                          <span>{formatearFecha(socio.fecha_inicio)} - {formatearFecha(socio.fecha_fin)}</span>
                         </div>
-
                         {socio.precio_pagado && (
-                          <p className="text-sm text-gray-500 mt-2">
-                            Pago: S/ {socio.precio_pagado} ({socio.metodo_pago || 'N/A'})
-                          </p>
+                          <div className="flex items-center gap-x-4 mt-1 text-xs text-gray-400">
+                            <span>S/ {socio.precio_pagado} ({socio.metodo_pago || 'N/A'})</span>
+                          </div>
                         )}
                       </div>
 
-                      <div className="ml-6">
-                        <button
-                          onClick={() => desactivarMembresia(socio.user_id)}
-                          className="px-6 py-3 border border-red-300 text-red-700 text-xs font-medium tracking-widest hover:bg-red-50 transition-colors uppercase"
-                        >
-                          Desactivar
-                        </button>
-                      </div>
+                      {/* Acción */}
+                      <button
+                        onClick={() => desactivarMembresia(socio.user_id)}
+                        className="flex-shrink-0 px-4 py-2 border border-red-300 text-red-600 text-xs font-medium tracking-widest hover:bg-red-50 transition-colors uppercase"
+                      >
+                        Desactivar
+                      </button>
                     </div>
                   </div>
                 );
@@ -302,13 +296,16 @@ const GestionMembresias = () => {
           </h2>
 
           {/* Búsqueda */}
-          <div className="mb-6">
+          <div className="mb-6 relative">
+            <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <input
               type="text"
-              placeholder="BUSCAR USUARIO POR NOMBRE O EMAIL"
+              placeholder="Buscar usuario por nombre o email..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full px-0 py-3 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 text-sm tracking-wide transition-colors"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 focus:border-black focus:outline-none bg-white text-black placeholder-gray-400 text-sm transition-colors"
             />
           </div>
 

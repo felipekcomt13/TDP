@@ -73,15 +73,15 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
     return `${nuevaHora.toString().padStart(2, '0')}:${nuevoMinuto.toString().padStart(2, '0')}`;
   };
 
-  // Fecha desde la cual se permiten reservas (día siguiente a la inauguración)
-  const FECHA_INICIO_RESERVAS = new Date(2026, 1, 16); // 16 de febrero de 2026 (mes 1 = febrero)
+  // Fecha desde la cual se permiten reservas en el calendario (18 de febrero de 2026)
+  const FECHA_INICIO_RESERVAS = new Date(2026, 1, 18); // 18 de febrero de 2026 (mes 1 = febrero)
 
   // Función para verificar si una fecha/hora ya pasó o está antes de la inauguración
   const esHoraPasada = (fecha, hora) => {
     const ahora = new Date();
     const fechaComparar = new Date(fecha);
 
-    // Bloquear todas las fechas antes de la inauguración
+    // Bloquear todas las fechas antes del 18 de febrero
     if (fechaComparar < FECHA_INICIO_RESERVAS) {
       return true;
     }
@@ -216,7 +216,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       hora >= rangoSeleccion.horaInicio;
 
     // Determinar clases CSS
-    let clasesCelda = 'p-1.5 md:p-3 border-r border-gray-200 text-center transition-all ';
+    let clasesCelda = 'p-1.5 md:p-3 border-r border-gray-200 text-center transition-all duration-75 ';
 
     if (horaPasada && (!reserva || !isAdmin())) {
       // Hora ya pasada - no disponible (para usuarios normales oculta todo, para admin solo si no hay reserva)
@@ -236,7 +236,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       if (horaPasada && isAdmin()) {
         clasesCelda += 'bg-yellow-100 border-yellow-300 text-yellow-600 cursor-not-allowed opacity-50';
       } else {
-        clasesCelda += 'bg-yellow-50 border-yellow-200 text-yellow-800 cursor-pointer hover:bg-yellow-100';
+        clasesCelda += 'bg-yellow-50 border-yellow-200 text-yellow-800 cursor-pointer hover:bg-yellow-100 active:scale-95';
       }
     } else if (esHoraInicial) {
       // Hora inicial seleccionada
@@ -249,13 +249,13 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       clasesCelda += 'bg-gray-200 hover:bg-gray-300 text-black cursor-pointer font-semibold border border-gray-400';
     } else if (esPosibleFinDeRango) {
       // Celda que puede ser seleccionada como fin de rango (principalmente para mobile)
-      clasesCelda += 'bg-blue-50 hover:bg-blue-100 text-blue-700 cursor-pointer border border-blue-200';
+      clasesCelda += 'bg-blue-50 hover:bg-blue-100 text-blue-700 cursor-pointer border border-blue-200 active:scale-95';
     } else if (rangoSeleccion && rangoSeleccion.fecha === fechaStr && rangoSeleccion.cancha === cancha) {
       // Mismo día y misma cancha pero no en rango hover (para desktop)
-      clasesCelda += 'bg-gray-50 hover:bg-gray-100 text-gray-700 cursor-pointer';
+      clasesCelda += 'bg-gray-50 hover:bg-gray-100 text-gray-700 cursor-pointer active:scale-95';
     } else {
       // Disponible normal
-      clasesCelda += 'bg-white hover:bg-gray-50 text-gray-600 cursor-pointer';
+      clasesCelda += 'bg-white hover:bg-gray-50 text-gray-600 cursor-pointer active:scale-95';
     }
 
     return (
@@ -268,24 +268,25 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       >
         {horaPasada && (!reserva || !isAdmin()) ? (
           <div className="text-[10px] md:text-xs">
-            <span className="font-semibold block uppercase tracking-wide text-[9px] md:text-[10px]">
-              No disponible
+            <span className="font-semibold block text-[10px] md:text-xs">
+              —
             </span>
           </div>
         ) : estaBloqueada ? (
           <div className="text-[10px] md:text-xs">
-            <div className="text-[9px] md:text-[10px] uppercase tracking-wide font-semibold text-gray-600">
-              Reservado
+            <div className="text-[10px] md:text-xs font-semibold text-gray-600 flex items-center justify-center gap-0.5">
+              <svg className="w-3 h-3 md:hidden flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+              <span className="hidden md:inline">Reservado</span>
             </div>
             {canchaQueBloquea && (
-              <div className="text-[7px] md:text-[8px] text-gray-500 mt-0.5 leading-tight">
+              <div className="text-[10px] md:text-[11px] text-gray-500 mt-0.5 leading-tight hidden md:block">
                 {obtenerNombreCancha(canchaQueBloquea)}
               </div>
             )}
           </div>
         ) : reserva?.estado === 'pendiente' ? (
           <div className="text-[10px] md:text-xs">
-            <span className="font-semibold block uppercase tracking-wide text-[9px] md:text-[10px] mb-1">
+            <span className="font-semibold block text-[10px] md:text-xs mb-1">
               Pendiente
             </span>
             {reserva?.nombre && (isAdmin() || reserva.userId === user?.id) && (
@@ -294,19 +295,20 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
               </span>
             )}
             {reserva?.horaFin && (
-              <span className="block mt-1 text-[9px] md:text-[10px] text-yellow-600">
+              <span className="block mt-1 text-[10px] md:text-xs text-yellow-600">
                 {reserva.hora} - {reserva.horaFin}
               </span>
             )}
-            <div className="text-[8px] md:text-[9px] text-yellow-600 mt-1 uppercase">
-              Click para solicitar
+            <div className="text-[10px] md:text-xs text-yellow-600 mt-1">
+              <span className="hidden md:inline">Click para solicitar</span>
+              <span className="md:hidden">Solicitar</span>
             </div>
           </div>
         ) : disponible ? (
           <div className="text-xs md:text-sm">
             {esHoraInicial ? (
               <div className="font-bold">
-                <div className="text-[9px] md:text-[10px] uppercase tracking-wider mb-1">Inicio</div>
+                <div className="text-[10px] md:text-xs uppercase tracking-wider mb-1">Inicio</div>
                 <div className="text-sm md:text-base">{hora}</div>
               </div>
             ) : enRangoHover ? (
@@ -316,7 +318,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
             ) : esPosibleFinDeRango ? (
               <div className="flex flex-col items-center justify-center">
                 <span className="text-lg md:text-xl">↓</span>
-                <span className="text-[8px] md:text-[9px] uppercase tracking-wide text-blue-600 font-semibold">Fin</span>
+                <span className="text-[10px] md:text-xs uppercase tracking-wide text-blue-600 font-semibold">Fin</span>
               </div>
             ) : (
               <span className="text-[10px] md:text-xs uppercase tracking-wide">
@@ -327,8 +329,9 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
           </div>
         ) : (
           <div className="text-[10px] md:text-xs">
-            <span className="font-semibold block uppercase tracking-wide text-[9px] md:text-[10px] mb-1">
-              Confirmado
+            <span className="font-semibold block text-[10px] md:text-xs mb-1">
+              <span className="hidden md:inline">Confirmado</span>
+              <svg className="w-3.5 h-3.5 md:hidden mx-auto" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
             </span>
             {reserva?.nombre && (isAdmin() || reserva.userId === user?.id) && (
               <span className="block text-[10px] md:text-xs text-gray-300 truncate max-w-[80px] md:max-w-none">
@@ -336,7 +339,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
               </span>
             )}
             {reserva?.horaFin && (
-              <span className="block mt-1 text-[9px] md:text-[10px] text-gray-400">
+              <span className="block mt-1 text-[10px] md:text-xs text-gray-400">
                 {reserva.hora} - {reserva.horaFin}
               </span>
             )}
@@ -526,7 +529,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
     setRangoHover(null);
   };
 
-  // Verificar si estamos antes de la inauguración
+  // Verificar si estamos antes de la apertura del sistema de reservas
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const antesDeInauguracion = hoy < FECHA_INICIO_RESERVAS;
@@ -536,14 +539,14 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       {/* Banner de inauguración */}
       {antesDeInauguracion && (
         <div className="mb-6 bg-black text-white p-6 border-l-4 border-yellow-400">
-          <p className="text-[10px] uppercase tracking-widest text-yellow-400 mb-2 font-semibold">
+          <p className="text-xs uppercase tracking-wider text-yellow-400 mb-2 font-semibold">
             Próxima Apertura
           </p>
           <p className="text-xl md:text-2xl font-bold mb-2">
-            Inauguración: 15 de Febrero 2026
+            Inauguración: 21 de Febrero 2026
           </p>
           <p className="text-sm text-gray-300">
-            Las reservas estarán disponibles a partir de esta fecha. ¡Te esperamos!
+            Las reservas estarán disponibles a partir del 18 de febrero. ¡Te esperamos!
           </p>
         </div>
       )}
@@ -667,7 +670,8 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
             WebkitOverflowScrolling: 'touch',
             touchAction: 'pan-x pan-y',
             scrollBehavior: isDragging ? 'auto' : 'smooth',
-            userSelect: isDragging ? 'none' : 'auto'
+            userSelect: isDragging ? 'none' : 'auto',
+            scrollSnapType: 'x mandatory'
           }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -677,7 +681,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          <table className="w-full border-collapse bg-white">
+          <table className="w-full border-collapse bg-white calendar-transition" key={`${vistaCancha}-${fechaActual.toISOString()}`}>
           <thead>
             <tr className="bg-black text-white">
               <th className="p-2 md:p-4 text-left font-semibold text-[10px] md:text-xs tracking-wider uppercase border-r border-gray-700 sticky left-0 bg-black z-10">Horario</th>
@@ -685,25 +689,37 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
                 if (vistaCancha === 'principal') {
                   // Vista principal: una columna por día
                   return (
-                    <th key={index} className="p-2 md:p-4 text-center font-medium border-r border-gray-700 min-w-[90px] md:min-w-[120px] last:border-r-0">
-                      <div className="flex flex-col">
+                    <th key={index} className={`p-2 md:p-4 text-center font-medium border-r border-gray-700 min-w-[90px] md:min-w-[120px] last:border-r-0 snap-start ${isSameDay(dia, new Date()) ? 'bg-gray-900' : ''}`}>
+                      <div className="flex flex-col items-center">
                         <span className="text-[9px] md:text-[10px] uppercase tracking-widest opacity-70">{format(dia, 'EEE', { locale: es })}</span>
-                        <span className={`text-sm md:text-lg font-bold mt-1 ${isSameDay(dia, new Date()) ? 'underline' : ''}`}>
-                          {format(dia, 'd MMM', { locale: es })}
-                        </span>
+                        {isSameDay(dia, new Date()) ? (
+                          <span className="text-sm md:text-lg font-bold mt-1 bg-white text-black rounded-full w-7 h-7 md:w-9 md:h-9 inline-flex items-center justify-center">
+                            {format(dia, 'd')}
+                          </span>
+                        ) : (
+                          <span className="text-sm md:text-lg font-bold mt-1">
+                            {format(dia, 'd MMM', { locale: es })}
+                          </span>
+                        )}
                       </div>
                     </th>
                   );
                 } else {
                   // Vista anexas: dos columnas por día (Anexa 1 y Anexa 2)
                   return (
-                    <th key={index} colSpan={2} className="p-0 border-r border-gray-700 last:border-r-0 min-w-[130px] md:min-w-[160px]">
+                    <th key={index} colSpan={2} className={`p-0 border-r border-gray-700 last:border-r-0 min-w-[130px] md:min-w-[160px] ${isSameDay(dia, new Date()) ? 'bg-gray-900' : ''}`}>
                       <div className="flex flex-col">
-                        <div className="p-1 md:p-2 border-b border-gray-700">
+                        <div className="p-1 md:p-2 border-b border-gray-700 flex items-center justify-center gap-1 md:gap-2">
                           <span className="text-[9px] md:text-[10px] uppercase tracking-widest opacity-70">{format(dia, 'EEE', { locale: es })}</span>
-                          <span className={`text-sm md:text-lg font-bold ml-1 md:ml-2 ${isSameDay(dia, new Date()) ? 'underline' : ''}`}>
-                            {format(dia, 'd MMM', { locale: es })}
-                          </span>
+                          {isSameDay(dia, new Date()) ? (
+                            <span className="text-sm md:text-lg font-bold bg-white text-black rounded-full w-7 h-7 md:w-9 md:h-9 inline-flex items-center justify-center">
+                              {format(dia, 'd')}
+                            </span>
+                          ) : (
+                            <span className="text-sm md:text-lg font-bold">
+                              {format(dia, 'd MMM', { locale: es })}
+                            </span>
+                          )}
                         </div>
                         <div className="flex">
                           <div className="flex-1 p-0.5 md:p-1.5 text-[8px] md:text-[9px] uppercase tracking-wide border-r border-gray-700">Anexa 1</div>
