@@ -139,7 +139,7 @@ const LandingPage = () => {
               COMPLEJO DEPORTIVO<br />TRIPLE DOBLE
             </h1>
             <p className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto leading-relaxed animate-stagger-3 ${videoActivo ? 'text-gray-100 drop-shadow-lg' : 'text-gray-300'}`}>
-              Reserva tu cancha de básquetbol de manera rápida y sencilla
+              Torneo 3x3 — 21 de febrero. Categoría Sub 20 varones y mujeres. ¡Inscríbete ya!
             </p>
             {videoActivo && (
               <a
