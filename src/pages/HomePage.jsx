@@ -20,6 +20,10 @@ const HomePage = () => {
     // Callback para cuando se crea una reserva exitosamente
   };
 
+  // Fecha de apertura de reservas
+  const FECHA_APERTURA = new Date(2026, 2, 1); // 1 de marzo de 2026
+  const reservasBloqueadas = new Date() < FECHA_APERTURA;
+
   return (
     <div className="bg-white min-h-full">
       <div className="px-4 md:px-6 lg:px-8 py-8 md:py-12">
@@ -27,9 +31,17 @@ const HomePage = () => {
           <h1 className="text-3xl md:text-4xl font-bold text-black mb-2 tracking-tight">
             RESERVAS
           </h1>
-          <p className="text-gray-600 text-sm tracking-wide">
-            Selecciona un horario disponible para reservar tu cancha
-          </p>
+          {reservasBloqueadas ? (
+            <div className="mt-4 border-2 border-black bg-black text-white px-6 py-4 text-center">
+              <p className="text-sm font-bold tracking-widest uppercase">
+                LAS RESERVAS ABREN EL 1 DE MARZO
+              </p>
+            </div>
+          ) : (
+            <p className="text-gray-600 text-sm tracking-wide">
+              Selecciona un horario disponible para reservar tu cancha
+            </p>
+          )}
         </div>
 
         <CalendarioSemanal onSeleccionarHorario={handleSeleccionarHorario} />

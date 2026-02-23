@@ -73,15 +73,15 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
     return `${nuevaHora.toString().padStart(2, '0')}:${nuevoMinuto.toString().padStart(2, '0')}`;
   };
 
-  // Fecha desde la cual se permiten reservas en el calendario (18 de febrero de 2026)
-  const FECHA_INICIO_RESERVAS = new Date(2026, 1, 18); // 18 de febrero de 2026 (mes 1 = febrero)
+  // Fecha desde la cual se permiten reservas en el calendario (1 de marzo de 2026)
+  const FECHA_INICIO_RESERVAS = new Date(2026, 2, 1); // 1 de marzo de 2026 (mes 2 = marzo)
 
   // Función para verificar si una fecha/hora ya pasó o está antes de la inauguración
   const esHoraPasada = (fecha, hora) => {
     const ahora = new Date();
     const fechaComparar = new Date(fecha);
 
-    // Bloquear todas las fechas antes del 18 de febrero
+    // Bloquear todas las fechas antes del 1 de marzo
     if (fechaComparar < FECHA_INICIO_RESERVAS) {
       return true;
     }
@@ -543,10 +543,10 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
             Próxima Apertura
           </p>
           <p className="text-xl md:text-2xl font-bold mb-2">
-            Inauguración: 21 de Febrero 2026
+            Reservas disponibles a partir del 1 de Marzo
           </p>
           <p className="text-sm text-gray-300">
-            Las reservas estarán disponibles a partir del 18 de febrero. ¡Te esperamos!
+            ¡Te esperamos!
           </p>
         </div>
       )}
