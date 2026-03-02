@@ -342,37 +342,24 @@ const CampoPage = () => {
               Tarifas/hora
             </h3>
 
-            {isAuthenticated() && esSocio() && (
-              <div className="mb-2 px-2 py-1 bg-black text-white text-center text-[10px] font-medium">
-                ERES SOCIO
-              </div>
-            )}
-
             <table className="text-xs w-full">
               <thead>
                 <tr className="border-b border-gray-300">
                   <th className="text-left py-1 pr-3 font-semibold text-gray-600"></th>
-                  <th className="text-center py-1 px-2 font-semibold text-gray-600">Regular</th>
-                  <th className="text-center py-1 pl-2 font-semibold text-gray-600">Socio</th>
+                  <th className="text-center py-1 px-2 font-semibold text-gray-600">Precio</th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="border-b border-gray-100">
                   <td className="py-2 pr-3 font-semibold text-gray-800">Principal</td>
-                  <td className={`text-center py-2 px-2 ${isAuthenticated() && !esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                  <td className="text-center py-2 px-2 font-bold text-black">
                     S/{PRECIOS.PRINCIPAL.NO_SOCIO}
-                  </td>
-                  <td className={`text-center py-2 pl-2 ${isAuthenticated() && esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
-                    S/{PRECIOS.PRINCIPAL.SOCIO}
                   </td>
                 </tr>
                 <tr>
                   <td className="py-2 pr-3 font-semibold text-gray-800">Anexas</td>
-                  <td className={`text-center py-2 px-2 ${isAuthenticated() && !esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
+                  <td className="text-center py-2 px-2 font-bold text-black">
                     S/{PRECIOS.ANEXA.NO_SOCIO}
-                  </td>
-                  <td className={`text-center py-2 pl-2 ${isAuthenticated() && esSocio() ? 'font-bold text-black' : 'text-gray-500'}`}>
-                    S/{PRECIOS.ANEXA.SOCIO}
                   </td>
                 </tr>
               </tbody>
@@ -503,48 +490,20 @@ const CampoPage = () => {
                 Tarifas/hora
               </h3>
 
-              {isAuthenticated() && esSocio() && (
-                <div className="mb-2 px-2 py-1 bg-black text-white text-center text-[10px] font-medium">
-                  ERES SOCIO
-                </div>
-              )}
-
               {/* Card: Cancha Principal */}
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-black">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <h4 className="font-bold text-sm text-black mb-2">Cancha Principal</h4>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5">Socio</p>
-                    <p className={`text-lg font-bold ${isAuthenticated() && esSocio() ? 'text-black' : 'text-gray-400'}`}>
-                      S/{PRECIOS.PRINCIPAL.SOCIO}<span className="text-xs font-normal text-gray-500">/h</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5">Regular</p>
-                    <p className={`text-lg font-bold ${isAuthenticated() && !esSocio() ? 'text-black' : 'text-gray-400'}`}>
-                      S/{PRECIOS.PRINCIPAL.NO_SOCIO}<span className="text-xs font-normal text-gray-500">/h</span>
-                    </p>
-                  </div>
-                </div>
+                <p className="text-lg font-bold text-black">
+                  S/{PRECIOS.PRINCIPAL.NO_SOCIO}<span className="text-xs font-normal text-gray-500">/h</span>
+                </p>
               </div>
 
               {/* Card: Canchas Anexas */}
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-gray-400">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <h4 className="font-bold text-sm text-black mb-2">Canchas Anexas</h4>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5">Socio</p>
-                    <p className={`text-lg font-bold ${isAuthenticated() && esSocio() ? 'text-black' : 'text-gray-400'}`}>
-                      S/{PRECIOS.ANEXA.SOCIO}<span className="text-xs font-normal text-gray-500">/h</span>
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5">Regular</p>
-                    <p className={`text-lg font-bold ${isAuthenticated() && !esSocio() ? 'text-black' : 'text-gray-400'}`}>
-                      S/{PRECIOS.ANEXA.NO_SOCIO}<span className="text-xs font-normal text-gray-500">/h</span>
-                    </p>
-                  </div>
-                </div>
+                <p className="text-lg font-bold text-black">
+                  S/{PRECIOS.ANEXA.NO_SOCIO}<span className="text-xs font-normal text-gray-500">/h</span>
+                </p>
               </div>
             </div>
           </div>

@@ -38,17 +38,17 @@ const MiMembresiaPage = () => {
         {esSocio() && membresia ? (
           <>
             {/* Estado de membresía activa */}
-            <div className="bg-gray-50 border-l-4 border-black p-8 mb-8">
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-8 mb-8">
               <div className="flex items-center gap-4 mb-6">
                 <BadgeSocio className="text-sm px-4 py-1" />
-                <span className="text-[10px] uppercase tracking-widest text-green-600 font-semibold">
-                  Membresía Activa
+                <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full border border-green-200">
+                  Activa
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
+                  <p className="text-sm font-medium text-gray-600 mb-2">
                     Válida desde
                   </p>
                   <p className="text-2xl font-bold text-black">
@@ -57,7 +57,7 @@ const MiMembresiaPage = () => {
                 </div>
 
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
+                  <p className="text-sm font-medium text-gray-600 mb-2">
                     Válida hasta
                   </p>
                   <p className="text-2xl font-bold text-black">
@@ -66,7 +66,7 @@ const MiMembresiaPage = () => {
                 </div>
 
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-2">
+                  <p className="text-sm font-medium text-gray-600 mb-2">
                     Días restantes
                   </p>
                   <p className={`text-4xl font-bold ${obtenerColorDias(diasRestantes())}`}>
@@ -79,8 +79,8 @@ const MiMembresiaPage = () => {
 
             {/* Información adicional */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white border border-gray-200 p-6">
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-4 font-semibold">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <p className="text-sm font-medium text-gray-600 mb-4">
                   Beneficios de Socio
                 </p>
                 <ul className="space-y-3 text-sm text-gray-700">
@@ -103,8 +103,8 @@ const MiMembresiaPage = () => {
                 </ul>
               </div>
 
-              <div className="bg-white border border-gray-200 p-6">
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-4 font-semibold">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <p className="text-sm font-medium text-gray-600 mb-4">
                   Renovación
                 </p>
                 <p className="text-sm text-gray-700 mb-4">
@@ -127,9 +127,9 @@ const MiMembresiaPage = () => {
 
             {/* Aviso de vencimiento próximo */}
             {diasRestantes() <= 7 && (
-              <div className="mt-8 bg-red-50 border-l-4 border-red-600 p-6">
-                <p className="text-[10px] uppercase tracking-widest text-red-600 mb-2 font-semibold">
-                  Atención
+              <div className="mt-8 bg-red-50 rounded-xl border border-red-200 p-6">
+                <p className="text-sm font-medium text-red-600 mb-2">
+                  Atencion
                 </p>
                 <p className="text-sm text-red-800">
                   Tu membresía está por vencer. Te recomendamos renovarla pronto para no perder tus beneficios de socio.
@@ -140,8 +140,8 @@ const MiMembresiaPage = () => {
         ) : (
           <>
             {/* Estado sin membresía */}
-            <div className="bg-gray-50 border-l-4 border-gray-400 p-8 mb-8">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-4 font-semibold">
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-8 mb-8">
+              <p className="text-sm font-medium text-gray-600 mb-4">
                 Estado
               </p>
               <p className="text-3xl font-bold text-gray-700 mb-4">
@@ -153,14 +153,14 @@ const MiMembresiaPage = () => {
             </div>
 
             {/* Cómo hacerse socio */}
-            <div className="bg-white border border-gray-200 p-8">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-6 font-semibold">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+              <p className="text-sm font-medium text-gray-600 mb-6">
                 ¿Cómo hacerse socio?
               </p>
 
               <div className="space-y-6">
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-black text-white flex items-center justify-center text-sm font-bold">
+                  <div className="flex-shrink-0 w-8 h-8 bg-black text-white rounded-xl flex items-center justify-center text-sm font-bold">
                     1
                   </div>
                   <div>
@@ -172,7 +172,7 @@ const MiMembresiaPage = () => {
                 </div>
 
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-black text-white flex items-center justify-center text-sm font-bold">
+                  <div className="flex-shrink-0 w-8 h-8 bg-black text-white rounded-xl flex items-center justify-center text-sm font-bold">
                     2
                   </div>
                   <div>
@@ -184,7 +184,7 @@ const MiMembresiaPage = () => {
                 </div>
 
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-black text-white flex items-center justify-center text-sm font-bold">
+                  <div className="flex-shrink-0 w-8 h-8 bg-black text-white rounded-xl flex items-center justify-center text-sm font-bold">
                     3
                   </div>
                   <div>
@@ -196,7 +196,7 @@ const MiMembresiaPage = () => {
                 </div>
 
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-black text-white flex items-center justify-center text-sm font-bold">
+                  <div className="flex-shrink-0 w-8 h-8 bg-black text-white rounded-xl flex items-center justify-center text-sm font-bold">
                     4
                   </div>
                   <div>
@@ -222,8 +222,8 @@ const MiMembresiaPage = () => {
             </div>
 
             {/* Beneficios */}
-            <div className="mt-8 bg-black text-white p-8">
-              <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-6 font-semibold">
+            <div className="mt-8 bg-gray-900 text-white rounded-xl p-8">
+              <p className="text-sm font-medium text-gray-400 mb-6">
                 Beneficios de ser socio
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -249,8 +249,8 @@ const MiMembresiaPage = () => {
         )}
 
         {/* Contacto */}
-        <div className="mt-8 bg-gray-50 border-l-2 border-black p-6">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-semibold">
+        <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">
+          <p className="text-sm font-medium text-gray-600 mb-3">
             ¿Tienes preguntas?
           </p>
           <p className="text-sm text-gray-700 mb-4">

@@ -124,8 +124,12 @@ const ConfiguracionSitio = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl font-bold text-black tracking-tight">Cargando...</p>
+        <div className="flex flex-col items-center gap-3">
+          <svg className="w-8 h-8 animate-spin text-black" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-sm text-gray-400">Cargando...</p>
         </div>
       </div>
     );
@@ -146,10 +150,10 @@ const ConfiguracionSitio = () => {
         {/* Mensaje de feedback */}
         {mensaje && (
           <div
-            className={`mb-6 px-6 py-4 border-l-2 ${
+            className={`mb-6 px-6 py-4 rounded-xl border ${
               mensaje.tipo === 'success'
-                ? 'bg-green-50 border-green-600 text-green-800'
-                : 'bg-red-50 border-red-600 text-red-800'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-red-50 border-red-200 text-red-800'
             }`}
           >
             {mensaje.texto}
@@ -166,10 +170,10 @@ const ConfiguracionSitio = () => {
           </p>
 
           {/* Estado actual */}
-          <div className="bg-gray-50 border-l-2 border-black p-6 mb-8">
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-1">
+                <p className="text-sm font-medium text-gray-600 mb-1">
                   Estado actual
                 </p>
                 <p className="text-sm font-medium text-black">
@@ -216,7 +220,7 @@ const ConfiguracionSitio = () => {
           {/* Preview del video */}
           {heroConfig.video_url && (
             <div className="mb-6">
-              <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-3">
+              <p className="text-sm font-medium text-gray-600 mb-3">
                 Preview
               </p>
               <div className="relative bg-black aspect-video overflow-hidden">
@@ -240,7 +244,7 @@ const ConfiguracionSitio = () => {
                     />
                     <div className="absolute inset-0 bg-black bg-opacity-40" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-white text-xs uppercase tracking-widest font-medium">
+                      <p className="text-white text-xs font-medium">
                         Preview del hero
                       </p>
                     </div>
@@ -252,15 +256,15 @@ const ConfiguracionSitio = () => {
 
           {/* Selector de metodo */}
           <div className="mb-4">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold mb-3">
+            <p className="text-sm font-medium text-gray-600 mb-3">
               Agregar video
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setMetodo('url')}
-                className={`px-4 py-2 text-xs font-medium tracking-widest uppercase transition-colors ${
+                className={`px-4 py-2 text-xs font-medium rounded-full transition-all ${
                   metodo === 'url'
-                    ? 'bg-black text-white'
+                    ? 'bg-black text-white shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -268,9 +272,9 @@ const ConfiguracionSitio = () => {
               </button>
               <button
                 onClick={() => setMetodo('archivo')}
-                className={`px-4 py-2 text-xs font-medium tracking-widest uppercase transition-colors ${
+                className={`px-4 py-2 text-xs font-medium rounded-full transition-all ${
                   metodo === 'archivo'
-                    ? 'bg-black text-white'
+                    ? 'bg-black text-white shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -288,12 +292,12 @@ const ConfiguracionSitio = () => {
                   value={inputUrl}
                   onChange={(e) => setInputUrl(e.target.value)}
                   placeholder="https://drive.google.com/... o URL directa al video"
-                  className="flex-1 px-4 py-2.5 border border-gray-300 focus:border-black focus:outline-none text-black text-sm placeholder-gray-400 transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm placeholder-gray-400 transition-all"
                 />
                 <button
                   onClick={handleGuardarUrl}
                   disabled={guardando || !inputUrl.trim()}
-                  className="px-5 py-2.5 bg-black text-white text-xs font-medium tracking-widest uppercase hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {guardando ? 'Guardando...' : 'Guardar'}
                 </button>
@@ -308,7 +312,7 @@ const ConfiguracionSitio = () => {
           {metodo === 'archivo' && (
             <div className="mb-6">
               <label
-                className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs font-medium tracking-widest uppercase transition-colors cursor-pointer ${
+                className={`inline-flex items-center gap-2 px-5 py-2.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
                   subiendo
                     ? 'bg-gray-400 text-white cursor-not-allowed'
                     : 'bg-black text-white hover:bg-gray-800'
@@ -339,7 +343,7 @@ const ConfiguracionSitio = () => {
               <button
                 onClick={handleEliminarVideo}
                 disabled={guardando}
-                className="inline-flex items-center gap-2 px-5 py-2.5 border border-red-300 text-red-600 text-xs font-medium tracking-widest uppercase hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -350,8 +354,8 @@ const ConfiguracionSitio = () => {
           )}
 
           {/* Nota informativa */}
-          <div className="mt-10 bg-gray-50 border-l-2 border-black p-6">
-            <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-semibold">
+          <div className="mt-10 bg-gray-50 rounded-xl border border-gray-200 p-6">
+            <p className="text-sm font-medium text-gray-600 mb-3">
               Nota
             </p>
             <ul className="text-sm text-gray-700 space-y-2">

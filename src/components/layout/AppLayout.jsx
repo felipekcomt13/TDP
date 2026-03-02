@@ -156,6 +156,15 @@ const AppLayout = ({ children }) => {
       )
     },
     {
+      path: '/admin/kiosco',
+      label: 'Kiosco',
+      icon: (
+        <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+        </svg>
+      )
+    },
+    {
       path: '/admin/configuracion',
       label: 'Configuracion',
       labelCorto: 'Config.',
@@ -389,7 +398,7 @@ const AppLayout = ({ children }) => {
                   </div>
                   <button
                     onClick={signOut}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-medium tracking-wide hover:bg-gray-50 transition-colors uppercase"
+                    className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
                   >
                     Salir
                   </button>
@@ -397,7 +406,7 @@ const AppLayout = ({ children }) => {
               ) : (
                 <Link
                   to="/login"
-                  className="px-6 py-2 bg-black text-white text-xs font-medium tracking-wide hover:bg-gray-800 transition-colors uppercase"
+                  className="px-6 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
                 >
                   Iniciar Sesion
                 </Link>
@@ -410,7 +419,7 @@ const AppLayout = ({ children }) => {
       {/* Overlay móvil */}
       {menuMovilAbierto && (
         <div
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
+          className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
           onClick={() => setMenuMovilAbierto(false)}
         />
       )}

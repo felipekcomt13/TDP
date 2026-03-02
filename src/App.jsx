@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ReservasProvider } from './context/ReservasContext';
 import { SociosComercialesProvider } from './context/SociosComercialesContext';
 import { HeroConfigProvider } from './context/HeroConfigContext';
+import { KioscoProvider } from './context/KioscoContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
 import LandingPage from './pages/LandingPage';
@@ -14,6 +15,7 @@ import GestionUsuarios from './pages/admin/GestionUsuarios';
 import GestionMembresias from './pages/admin/GestionMembresias';
 import GestionSociosComerciales from './pages/admin/GestionSociosComerciales';
 import ConfiguracionSitio from './pages/admin/ConfiguracionSitio';
+import KioscoAdmin from './pages/admin/KioscoAdmin';
 import MiMembresiaPage from './pages/MiMembresiaPage';
 import CampoPage from './pages/CampoPage';
 import SociosComercialesPage from './pages/SociosComercialesPage';
@@ -25,6 +27,7 @@ function App() {
         <ReservasProvider>
           <SociosComercialesProvider>
           <HeroConfigProvider>
+          <KioscoProvider>
           <Routes>
             {/* Login sin layout */}
             <Route path="/login" element={<LoginPage />} />
@@ -90,8 +93,18 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/kiosco"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AppLayout><KioscoAdmin /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
+          </KioscoProvider>
           </HeroConfigProvider>
+
           </SociosComercialesProvider>
         </ReservasProvider>
       </AuthProvider>

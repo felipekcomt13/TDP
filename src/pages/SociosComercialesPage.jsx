@@ -68,7 +68,13 @@ const SociosComercialesPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-xl font-bold text-black tracking-tight">Cargando...</p>
+        <div className="flex flex-col items-center gap-3">
+          <svg className="w-8 h-8 animate-spin text-black" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-sm text-gray-400">Cargando...</p>
+        </div>
       </div>
     );
   }
@@ -171,7 +177,7 @@ const SociosComercialesPage = () => {
               <button
                 key={cat.valor}
                 onClick={() => setCategoriaActiva(cat.valor)}
-                className={`flex-shrink-0 px-4 py-2 text-xs font-medium tracking-wide uppercase transition-colors ${
+                className={`flex-shrink-0 px-4 py-2 text-xs font-medium rounded-full transition-all ${
                   categoriaActiva === cat.valor
                     ? 'bg-black text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -187,11 +193,11 @@ const SociosComercialesPage = () => {
       {/* Grid de socios */}
       <div className="px-6 lg:px-8 pb-12">
         {sociosFiltrados.length === 0 ? (
-          <div className="text-center py-20 border border-gray-200">
+          <div className="text-center py-20 bg-gray-50 rounded-2xl">
             <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
-            <p className="text-gray-400 text-sm uppercase tracking-widest mb-1">
+            <p className="text-gray-400 text-sm mb-1">
               No hay socios comerciales
             </p>
             <p className="text-gray-400 text-xs">
@@ -203,7 +209,7 @@ const SociosComercialesPage = () => {
             {sociosFiltrados.map((socio) => (
               <div
                 key={socio.id}
-                className="border border-gray-200 hover:border-black transition-all hover:shadow-md flex flex-col"
+                className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col"
               >
                 {/* Logo / Placeholder */}
                 <div className="h-40 bg-gray-50 flex items-center justify-center overflow-hidden">
@@ -233,7 +239,7 @@ const SociosComercialesPage = () => {
                     {socio.nombre}
                   </h3>
 
-                  <span className="inline-block self-start px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest bg-gray-100 text-gray-600 mb-3">
+                  <span className="inline-block self-start px-2.5 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-600 rounded-full mb-3">
                     {categoriaLabel(socio.categoria)}
                   </span>
 
@@ -245,7 +251,7 @@ const SociosComercialesPage = () => {
 
                   {/* Beneficio destacado */}
                   <div className="mt-auto pt-3 border-t border-gray-100">
-                    <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1 font-semibold">
+                    <p className="text-sm font-medium text-gray-600 mb-1">
                       Beneficio Socio
                     </p>
                     <p className="text-sm font-semibold text-black">
@@ -262,7 +268,7 @@ const SociosComercialesPage = () => {
       {/* CTA para no-socios */}
       {!esSocio() && (
         <div className="px-6 lg:px-8 pb-12">
-          <div className="bg-gray-50 border-l-2 border-black p-8 text-center">
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-8 text-center">
             <h2 className="text-2xl font-bold text-black tracking-tight mb-2">
               HAZTE SOCIO
             </h2>
@@ -271,9 +277,9 @@ const SociosComercialesPage = () => {
             </p>
             <Link
               to="/mi-membresia"
-              className="inline-block px-8 py-3 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+              className="inline-block px-8 py-3 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
             >
-              Ver Membresia
+              Ver membresia
             </Link>
           </div>
         </div>

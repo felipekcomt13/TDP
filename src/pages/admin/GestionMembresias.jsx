@@ -176,8 +176,12 @@ const GestionMembresias = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl font-bold text-black tracking-tight">Cargando...</p>
+        <div className="flex flex-col items-center gap-3">
+          <svg className="w-8 h-8 animate-spin text-black" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-sm text-gray-400">Cargando...</p>
         </div>
       </div>
     );
@@ -198,10 +202,10 @@ const GestionMembresias = () => {
         {/* Mensaje de feedback */}
         {mensaje && (
           <div
-            className={`mb-6 px-6 py-4 border-l-2 ${
+            className={`mb-6 px-6 py-4 rounded-xl border ${
               mensaje.tipo === 'success'
-                ? 'bg-green-50 border-green-600 text-green-800'
-                : 'bg-red-50 border-red-600 text-red-800'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-red-50 border-red-200 text-red-800'
             }`}
           >
             {mensaje.texto}
@@ -225,7 +229,7 @@ const GestionMembresias = () => {
           </div>
 
           {socios.length === 0 ? (
-            <div className="text-center py-16 border border-gray-200">
+            <div className="text-center py-16 bg-gray-50 rounded-2xl">
               <p className="text-gray-400 text-sm">No hay socios activos</p>
             </div>
           ) : (
@@ -237,8 +241,8 @@ const GestionMembresias = () => {
                 return (
                   <div
                     key={socio.id}
-                    className={`border p-4 md:p-5 transition-all ${
-                      diasRestantes <= 7 ? 'border-red-200 bg-red-50/30' : 'border-gray-200 hover:border-gray-400'
+                    className={`rounded-xl border p-4 md:p-5 transition-all ${
+                      diasRestantes <= 7 ? 'border-red-200 bg-red-50/30 shadow-sm' : 'border-gray-100 bg-white shadow-sm hover:shadow-md'
                     }`}
                   >
                     <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
@@ -247,7 +251,7 @@ const GestionMembresias = () => {
                         <span className={`text-2xl font-bold leading-none ${colorDias}`}>
                           {diasRestantes}
                         </span>
-                        <span className="text-[10px] uppercase tracking-widest text-gray-400">
+                        <span className="text-[10px] text-gray-400">
                           días
                         </span>
                       </div>
@@ -277,7 +281,7 @@ const GestionMembresias = () => {
                       {/* Acción */}
                       <button
                         onClick={() => desactivarMembresia(socio.user_id)}
-                        className="flex-shrink-0 px-4 py-2 border border-red-300 text-red-600 text-xs font-medium tracking-widest hover:bg-red-50 transition-colors uppercase"
+                        className="flex-shrink-0 px-4 py-2 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 active:scale-[0.98] transition-all"
                       >
                         Desactivar
                       </button>
@@ -305,7 +309,7 @@ const GestionMembresias = () => {
               placeholder="Buscar usuario por nombre o email..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 focus:border-black focus:outline-none bg-white text-black placeholder-gray-400 text-sm transition-colors"
+              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white text-black placeholder-gray-400 text-sm transition-all"
             />
           </div>
 
@@ -318,8 +322,8 @@ const GestionMembresias = () => {
                 return (
                   <div
                     key={usuario.id}
-                    className={`bg-white border p-4 transition-all ${
-                      esSocio ? 'border-gray-200 bg-gray-50' : 'border-gray-300 hover:border-black'
+                    className={`bg-white rounded-xl shadow-sm border p-4 transition-all ${
+                      esSocio ? 'border-gray-100 bg-gray-50' : 'border-gray-100 hover:shadow-md'
                     }`}
                   >
                     <div className="flex justify-between items-center">
@@ -336,7 +340,7 @@ const GestionMembresias = () => {
                       {!esSocio && (
                         <button
                           onClick={() => setModalActivo(usuario)}
-                          className="px-6 py-2 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+                          className="px-6 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
                         >
                           Activar
                         </button>
@@ -350,7 +354,7 @@ const GestionMembresias = () => {
               })}
 
               {usuariosFiltrados.length === 0 && (
-                <p className="text-center text-gray-400 py-8 text-sm uppercase tracking-widest">
+                <p className="text-center text-gray-400 py-8 text-sm">
                   No se encontraron usuarios
                 </p>
               )}
@@ -364,15 +368,15 @@ const GestionMembresias = () => {
           )}
 
           {!busqueda && (
-            <p className="text-center text-gray-400 py-8 text-sm uppercase tracking-widest">
+            <p className="text-center text-gray-400 py-8 text-sm">
               Escribe para buscar usuarios
             </p>
           )}
         </div>
 
         {/* Nota informativa */}
-        <div className="mt-8 bg-gray-50 border-l-2 border-black p-6">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-semibold">
+        <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">
+          <p className="text-sm font-medium text-gray-600 mb-3">
             Nota Importante
           </p>
           <ul className="text-sm text-gray-700 space-y-2">
@@ -394,8 +398,8 @@ const GestionMembresias = () => {
 
       {/* Modal para activar membresía */}
       {modalActivo && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-md w-full p-8">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white max-w-md w-full p-8 rounded-2xl shadow-2xl">
             <h3 className="text-2xl font-bold text-black tracking-tight mb-2">
               ACTIVAR MEMBRESÍA
             </h3>
@@ -405,13 +409,13 @@ const GestionMembresias = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Duración
                 </label>
                 <select
                   value={formData.duracion}
                   onChange={(e) => setFormData({ ...formData, duracion: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm transition-all"
                 >
                   <option value="30">30 días (1 mes)</option>
                   <option value="90">90 días (3 meses)</option>
@@ -421,7 +425,7 @@ const GestionMembresias = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Precio Pagado (S/)
                 </label>
                 <input
@@ -430,18 +434,18 @@ const GestionMembresias = () => {
                   value={formData.precio}
                   onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
                   placeholder="Ej: 50.00"
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm placeholder-gray-400 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Método de Pago
                 </label>
                 <select
                   value={formData.metodoPago}
                   onChange={(e) => setFormData({ ...formData, metodoPago: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm transition-all"
                 >
                   <option value="efectivo">Efectivo</option>
                   <option value="yape">Yape</option>
@@ -452,7 +456,7 @@ const GestionMembresias = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Notas (opcional)
                 </label>
                 <textarea
@@ -460,7 +464,7 @@ const GestionMembresias = () => {
                   onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
                   placeholder="Notas adicionales..."
                   rows="2"
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm placeholder-gray-400 resize-none"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm placeholder-gray-400 resize-none transition-all"
                 />
               </div>
             </div>
@@ -471,13 +475,13 @@ const GestionMembresias = () => {
                   setModalActivo(null);
                   resetFormData();
                 }}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => activarMembresia(modalActivo.id)}
-                className="flex-1 px-6 py-3 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+                className="flex-1 px-6 py-3 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
               >
                 Activar
               </button>

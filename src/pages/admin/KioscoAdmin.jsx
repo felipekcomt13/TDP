@@ -1,0 +1,968 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useKiosco } from '../../context/KioscoContext';
+
+const formInicial = {
+  nombre: '',
+  precio: '',
+  stock: '',
+  codigoBarras: '',
+  imagenUrl: ''
+};
+
+const KioscoAdmin = () => {
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const {
+    productos,
+    ventas,
+    loadingProductos,
+    loadingVentas,
+    agregarProducto,
+    editarProducto,
+    eliminarProducto,
+    reordenarBatch,
+    subirImagenProducto,
+    eliminarImagenProducto,
+    registrarVenta
+  } = useKiosco();
+
+  const [tabActivo, setTabActivo] = useState('inventario');
+  const [busqueda, setBusqueda] = useState('');
+  const [mensaje, setMensaje] = useState(null);
+  const [modalTipo, setModalTipo] = useState(null);
+  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+  const [formData, setFormData] = useState(formInicial);
+  const [guardando, setGuardando] = useState(false);
+  const [filtroFecha, setFiltroFecha] = useState('');
+  const [archivoImagen, setArchivoImagen] = useState(null);
+  const [previewImagen, setPreviewImagen] = useState(null);
+  const [draggedId, setDraggedId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  useEffect(() => {
+    if (!isAdmin()) {
+      navigate('/');
+    }
+  }, [isAdmin, navigate]);
+
+  const mostrarMensaje = (texto, tipo) => {
+    setMensaje({ texto, tipo });
+    setTimeout(() => setMensaje(null), 4000);
+  };
+
+  // --- MODALES ---
+
+  const abrirModalAgregar = () => {
+    setFormData(formInicial);
+    setProductoSeleccionado(null);
+    setArchivoImagen(null);
+    setPreviewImagen(null);
+    setModalTipo('agregar');
+  };
+
+  const abrirModalEditar = (producto) => {
+    setFormData({
+      nombre: producto.nombre,
+      precio: producto.precio.toString(),
+      stock: producto.stock.toString(),
+      codigoBarras: producto.codigo_barras || '',
+      imagenUrl: producto.imagen_url || ''
+    });
+    setProductoSeleccionado(producto);
+    setArchivoImagen(null);
+    setPreviewImagen(producto.imagen_url || null);
+    setModalTipo('editar');
+  };
+
+  const abrirModalEliminar = (producto) => {
+    setProductoSeleccionado(producto);
+    setModalTipo('eliminar');
+  };
+
+  const abrirModalStock = (producto) => {
+    setFormData({
+      nombre: producto.nombre,
+      precio: producto.precio.toString(),
+      stock: producto.stock.toString(),
+      codigoBarras: producto.codigo_barras || ''
+    });
+    setProductoSeleccionado(producto);
+    setModalTipo('stock');
+  };
+
+  const cerrarModal = () => {
+    setModalTipo(null);
+    setProductoSeleccionado(null);
+    setFormData(formInicial);
+    setArchivoImagen(null);
+    setPreviewImagen(null);
+  };
+
+  const handleArchivoSeleccionado = (e) => {
+    procesarArchivo(e.target.files[0]);
+  };
+
+  const quitarImagen = () => {
+    setArchivoImagen(null);
+    setPreviewImagen(null);
+    setFormData({ ...formData, imagenUrl: '' });
+  };
+
+  const procesarArchivo = (archivo) => {
+    if (!archivo) return;
+    if (!archivo.type.startsWith('image/')) {
+      mostrarMensaje('Solo se permiten archivos de imagen', 'error');
+      return;
+    }
+    if (archivo.size > 2 * 1024 * 1024) {
+      mostrarMensaje('La imagen no debe superar los 2MB', 'error');
+      return;
+    }
+    setArchivoImagen(archivo);
+    setPreviewImagen(URL.createObjectURL(archivo));
+  };
+
+  const handleDropImagen = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const archivo = e.dataTransfer.files[0];
+    procesarArchivo(archivo);
+  };
+
+  // --- HANDLERS ---
+
+  const handleGuardar = async () => {
+    if (!formData.nombre.trim() || !formData.precio || !formData.stock) {
+      mostrarMensaje('Completa los campos obligatorios: nombre, precio y stock', 'error');
+      return;
+    }
+
+    const precio = parseFloat(formData.precio);
+    const stock = parseInt(formData.stock);
+
+    if (isNaN(precio) || precio < 0) {
+      mostrarMensaje('El precio debe ser un numero valido mayor o igual a 0', 'error');
+      return;
+    }
+    if (isNaN(stock) || stock < 0) {
+      mostrarMensaje('El stock debe ser un numero entero mayor o igual a 0', 'error');
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      let imagenUrl = formData.imagenUrl;
+
+      // Subir imagen nueva si hay archivo seleccionado
+      if (archivoImagen) {
+        // Si estamos editando y ya tenia imagen, eliminar la anterior
+        if (modalTipo === 'editar' && productoSeleccionado?.imagen_url) {
+          await eliminarImagenProducto(productoSeleccionado.imagen_url);
+        }
+        imagenUrl = await subirImagenProducto(archivoImagen);
+      }
+      // Si se quito la imagen (preview null y no hay archivo)
+      else if (!previewImagen && modalTipo === 'editar' && productoSeleccionado?.imagen_url) {
+        await eliminarImagenProducto(productoSeleccionado.imagen_url);
+        imagenUrl = '';
+      }
+
+      const datos = {
+        nombre: formData.nombre.trim(),
+        precio,
+        stock,
+        codigoBarras: formData.codigoBarras.trim() || null,
+        imagenUrl
+      };
+
+      if (modalTipo === 'agregar') {
+        await agregarProducto(datos);
+        mostrarMensaje('Producto agregado correctamente', 'success');
+      } else {
+        await editarProducto(productoSeleccionado.id, datos);
+        mostrarMensaje('Producto actualizado correctamente', 'success');
+      }
+      cerrarModal();
+    } catch (error) {
+      mostrarMensaje('Error: ' + error.message, 'error');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleEliminar = async () => {
+    setGuardando(true);
+    try {
+      // Eliminar imagen del storage si tenia
+      if (productoSeleccionado.imagen_url) {
+        await eliminarImagenProducto(productoSeleccionado.imagen_url);
+      }
+      await eliminarProducto(productoSeleccionado.id);
+      mostrarMensaje('Producto eliminado correctamente', 'success');
+      cerrarModal();
+    } catch (error) {
+      mostrarMensaje('Error al eliminar: ' + error.message, 'error');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleActualizarStock = async () => {
+    const stock = parseInt(formData.stock);
+    if (isNaN(stock) || stock < 0) {
+      mostrarMensaje('El stock debe ser un numero valido', 'error');
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      await editarProducto(productoSeleccionado.id, {
+        nombre: productoSeleccionado.nombre,
+        precio: productoSeleccionado.precio,
+        stock,
+        codigoBarras: productoSeleccionado.codigo_barras || null
+      });
+      mostrarMensaje('Stock actualizado correctamente', 'success');
+      cerrarModal();
+    } catch (error) {
+      mostrarMensaje('Error: ' + error.message, 'error');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleVender = async (producto) => {
+    try {
+      const resultado = await registrarVenta(producto.id);
+      mostrarMensaje(`Venta registrada: ${resultado.producto} — Stock restante: ${resultado.stock_restante}`, 'success');
+    } catch (error) {
+      mostrarMensaje('Error: ' + error.message, 'error');
+    }
+  };
+
+  // --- DRAG AND DROP ---
+
+  const dragEnabled = !busqueda;
+
+  const handleDragStart = (e, id) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, id) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (id !== draggedId) {
+      setDragOverId(id);
+    }
+  };
+
+  const handleDrop = async (e, targetId) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+
+    const items = [...productos];
+    const fromIndex = items.findIndex(p => p.id === draggedId);
+    const toIndex = items.findIndex(p => p.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const [moved] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, moved);
+
+    const nuevosOrden = items.map((item, i) => ({ id: item.id, orden: i + 1 }));
+
+    setDraggedId(null);
+    setDragOverId(null);
+
+    try {
+      await reordenarBatch(nuevosOrden);
+    } catch {
+      mostrarMensaje('Error al reordenar', 'error');
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverId(null);
+  };
+
+  // --- FILTROS ---
+
+  const productosFiltrados = productos.filter(p => {
+    if (!busqueda) return true;
+    const b = busqueda.toLowerCase();
+    return (
+      p.nombre.toLowerCase().includes(b) ||
+      (p.codigo_barras && p.codigo_barras.toLowerCase().includes(b))
+    );
+  });
+
+  const ventasFiltradas = ventas.filter(v => {
+    if (!filtroFecha) return true;
+    const fechaVenta = new Date(v.created_at).toISOString().split('T')[0];
+    return fechaVenta === filtroFecha;
+  });
+
+  const totalVentasFiltradas = ventasFiltradas.reduce((sum, v) => sum + (parseFloat(v.precio_venta) * v.cantidad), 0);
+
+  const formatearFechaHora = (fechaStr) => {
+    const fecha = new Date(fechaStr);
+    return fecha.toLocaleString('es-PE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // --- TABS ---
+
+  const tabs = [
+    { valor: 'inventario', label: 'Inventario' },
+    { valor: 'ventas', label: 'Ventas' },
+    { valor: 'historial', label: 'Historial' }
+  ];
+
+  const stockColor = (stock) => {
+    if (stock === 0) return 'text-red-600 bg-red-50 border-red-100';
+    if (stock <= 5) return 'text-amber-700 bg-amber-50 border-amber-100';
+    return 'text-emerald-700 bg-emerald-50 border-emerald-100';
+  };
+
+  // --- LOADING ---
+
+  if (loadingProductos && loadingVentas) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="w-8 h-8 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-sm text-gray-400">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER INVENTARIO ---
+
+  const renderInventario = () => (
+    <>
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+        <div className="flex-1 relative">
+          <svg className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Buscar por nombre o codigo de barras..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+          />
+        </div>
+        <button
+          onClick={abrirModalAgregar}
+          className="px-6 py-3 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Agregar producto
+        </button>
+      </div>
+
+      {/* Stats */}
+      <div className="flex gap-3 mb-6">
+        <span className="px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium text-gray-600">
+          {productos.length} producto{productos.length !== 1 ? 's' : ''}
+        </span>
+        {productos.filter(p => p.stock === 0).length > 0 && (
+          <span className="px-3 py-1.5 bg-red-50 rounded-full text-xs font-medium text-red-600">
+            {productos.filter(p => p.stock === 0).length} sin stock
+          </span>
+        )}
+      </div>
+
+      {/* Lista de productos */}
+      {productosFiltrados.length === 0 ? (
+        <div className="text-center py-20 bg-gray-50 rounded-2xl">
+          <svg className="w-14 h-14 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          </svg>
+          <p className="text-gray-400 text-sm">
+            {busqueda ? 'No se encontraron productos' : 'No hay productos en el inventario'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {productosFiltrados.map((producto) => (
+            <div
+              key={producto.id}
+              draggable={dragEnabled}
+              onDragStart={(e) => dragEnabled && handleDragStart(e, producto.id)}
+              onDragOver={(e) => dragEnabled && handleDragOver(e, producto.id)}
+              onDrop={(e) => dragEnabled && handleDrop(e, producto.id)}
+              onDragEnd={handleDragEnd}
+              className={`bg-white rounded-xl shadow-sm border p-5 transition-all ${
+                dragEnabled ? 'cursor-grab active:cursor-grabbing' : ''
+              } ${
+                draggedId === producto.id ? 'opacity-40 scale-95' : 'hover:shadow-md'
+              } ${
+                dragOverId === producto.id && draggedId !== producto.id ? 'border-black border-2 shadow-lg' : 'border-gray-100'
+              }`}
+            >
+              {/* Imagen */}
+              <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden mb-4">
+                {producto.imagen_url ? (
+                  <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-contain p-2" />
+                ) : (
+                  <span className="text-3xl font-bold text-gray-300">{producto.nombre.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <h3 className="font-semibold text-gray-900 text-base truncate">{producto.nombre}</h3>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-900">S/ {parseFloat(producto.precio).toFixed(2)}</span>
+                  <span className={`px-2.5 py-0.5 text-[11px] font-semibold rounded-full border ${stockColor(producto.stock)}`}>
+                    {producto.stock} uds
+                  </span>
+                </div>
+                {producto.codigo_barras && (
+                  <p className="text-xs text-gray-300 mt-1">{producto.codigo_barras}</p>
+                )}
+              </div>
+
+              {/* Acciones */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1" />
+                <button
+                  onClick={() => abrirModalEditar(producto)}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 transition-all"
+                  title="Editar"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => abrirModalEliminar(producto)}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg border border-red-200 hover:bg-red-50 transition-all"
+                  title="Eliminar"
+                >
+                  <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  // --- RENDER VENTAS ---
+
+  const renderVentas = () => {
+    const productosConStock = productosFiltrados.filter(p => p.stock > 0);
+    const productosSinStock = productosFiltrados.filter(p => p.stock === 0);
+
+    return (
+      <>
+        {/* Busqueda */}
+        <div className="relative mb-6">
+          <svg className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Buscar producto..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+          />
+        </div>
+
+        {productosFiltrados.length === 0 ? (
+          <div className="text-center py-20 bg-gray-50 rounded-2xl">
+            <p className="text-gray-400 text-sm">
+              {busqueda ? 'No se encontraron productos' : 'No hay productos registrados'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Productos con stock */}
+            {productosConStock.map((producto) => (
+              <div
+                key={producto.id}
+                className="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 p-5 transition-all"
+              >
+                {/* Imagen */}
+                <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden mb-4">
+                  {producto.imagen_url ? (
+                    <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-contain p-2" />
+                  ) : (
+                    <span className="text-3xl font-bold text-gray-300">{producto.nombre.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="mb-4">
+                  <h3 className="font-semibold text-gray-900 text-base truncate mb-1.5">{producto.nombre}</h3>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-gray-900">S/ {parseFloat(producto.precio).toFixed(2)}</span>
+                    <span className={`px-2.5 py-0.5 text-[11px] font-semibold rounded-full border ${stockColor(producto.stock)}`}>
+                      {producto.stock} uds
+                    </span>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => abrirModalStock(producto)}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 transition-all"
+                    title="Editar stock"
+                  >
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleVender(producto)}
+                    className="flex-1 py-2.5 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
+                  >
+                    Vender
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Productos sin stock */}
+            {productosSinStock.map((producto) => (
+              <div
+                key={producto.id}
+                className="bg-white rounded-xl border border-gray-100 p-5 opacity-40 transition-all"
+              >
+                {/* Imagen */}
+                <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden mb-4">
+                  {producto.imagen_url ? (
+                    <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-contain p-2" />
+                  ) : (
+                    <span className="text-3xl font-bold text-gray-300">{producto.nombre.charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="mb-4">
+                  <h3 className="font-semibold text-gray-500 text-base truncate mb-1.5">{producto.nombre}</h3>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium text-gray-400">S/ {parseFloat(producto.precio).toFixed(2)}</span>
+                    <span className="px-2.5 py-0.5 text-[11px] font-semibold rounded-full border text-red-600 bg-red-50 border-red-100">
+                      Sin stock
+                    </span>
+                  </div>
+                </div>
+
+                {/* Acciones */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => abrirModalStock(producto)}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 transition-all"
+                    title="Agregar stock"
+                  >
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  </button>
+                  <button
+                    disabled
+                    className="flex-1 py-2.5 bg-gray-100 text-gray-400 text-sm font-medium rounded-lg cursor-not-allowed"
+                  >
+                    Agotado
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  };
+
+  // --- RENDER HISTORIAL ---
+
+  const renderHistorial = () => (
+    <>
+      {/* Filtro de fecha */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+        <div className="flex-1">
+          <input
+            type="date"
+            value={filtroFecha}
+            onChange={(e) => setFiltroFecha(e.target.value)}
+            className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+          />
+        </div>
+        <button
+          onClick={() => setFiltroFecha(new Date().toISOString().split('T')[0])}
+          className="px-6 py-3 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
+        >
+          Hoy
+        </button>
+        {filtroFecha && (
+          <button
+            onClick={() => setFiltroFecha('')}
+            className="px-5 py-3 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+          >
+            Ver todas
+          </button>
+        )}
+      </div>
+
+      {/* Lista de ventas */}
+      {ventasFiltradas.length === 0 ? (
+        <div className="text-center py-20 bg-gray-50 rounded-2xl">
+          <svg className="w-14 h-14 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <p className="text-gray-400 text-sm">
+            {filtroFecha ? 'No hay ventas en esta fecha' : 'No hay ventas registradas'}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {ventasFiltradas.map((venta) => (
+              <div
+                key={venta.id}
+                className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-gray-100"
+              >
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-sm truncate">{venta.nombre_producto}</h3>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-xs text-gray-400">
+                      {formatearFechaHora(venta.created_at)}
+                    </span>
+                    {venta.cantidad > 1 && (
+                      <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-500">
+                        x{venta.cantidad}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <span className="font-semibold text-gray-900 text-sm">
+                    S/ {(parseFloat(venta.precio_venta) * venta.cantidad).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Total */}
+          <div className="mt-6 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
+            <span className="text-sm text-gray-300">
+              Total {filtroFecha ? 'del dia' : 'general'} ({ventasFiltradas.length} venta{ventasFiltradas.length !== 1 ? 's' : ''})
+            </span>
+            <span className="text-xl font-bold">
+              S/ {totalVentasFiltradas.toFixed(2)}
+            </span>
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  // --- RENDER MODALES ---
+
+  const renderModales = () => (
+    <>
+      {/* Modal Agregar/Editar Producto */}
+      {(modalTipo === 'agregar' || modalTipo === 'editar') && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl animate-scaleIn">
+            <div className="p-8 pb-2 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">
+                {modalTipo === 'agregar' ? 'Agregar producto' : 'Editar producto'}
+              </h2>
+              <button
+                onClick={cerrarModal}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-8 pt-6 space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Nombre</label>
+                <input
+                  type="text"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  placeholder="Nombre del producto"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Foto <span className="text-gray-400 font-normal">(opcional)</span></label>
+                {previewImagen ? (
+                  <div className="border border-gray-200 rounded-lg p-3 mb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-gray-400">Preview</p>
+                      <button
+                        type="button"
+                        onClick={quitarImagen}
+                        className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                    <div className="h-32 bg-gray-50 rounded flex items-center justify-center">
+                      <img src={previewImagen} alt="Preview" className="max-h-full max-w-full object-contain" />
+                    </div>
+                  </div>
+                ) : null}
+                <label
+                  onDrop={handleDropImagen}
+                  onDragOver={(e) => e.preventDefault()}
+                  className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed border-gray-300 rounded-lg hover:border-gray-500 cursor-pointer transition-all"
+                >
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-sm text-gray-500">
+                    {previewImagen ? 'Cambiar imagen' : 'Seleccionar imagen'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleArchivoSeleccionado}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-[10px] text-gray-400 mt-1">PNG, JPG o WebP. Maximo 2MB.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Precio (S/)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.precio}
+                    onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
+                    placeholder="0.00"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Stock</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.stock}
+                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                    placeholder="0"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white transition-all"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Codigo de barras <span className="text-gray-400 font-normal">(opcional)</span></label>
+                <input
+                  type="text"
+                  value={formData.codigoBarras}
+                  onChange={(e) => setFormData({ ...formData, codigoBarras: e.target.value })}
+                  placeholder="Ej: 7750000000000"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white transition-all"
+                />
+              </div>
+            </div>
+            <div className="p-8 pt-4 flex gap-3 justify-end">
+              <button
+                onClick={cerrarModal}
+                className="px-6 py-3 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleGuardar}
+                disabled={guardando}
+                className="px-6 py-3 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100"
+              >
+                {guardando ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Eliminar */}
+      {modalTipo === 'eliminar' && productoSeleccionado && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl animate-scaleIn">
+            <div className="p-8">
+              <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-bold text-gray-900 text-center mb-2">Eliminar producto</h2>
+              <p className="text-sm text-gray-500 text-center mb-1">
+                Estas seguro de eliminar <span className="font-semibold text-gray-900">{productoSeleccionado.nombre}</span>?
+              </p>
+              <p className="text-xs text-gray-400 text-center">
+                Las ventas historicas se mantendran en el historial.
+              </p>
+            </div>
+            <div className="p-8 pt-2 flex gap-3">
+              <button
+                onClick={cerrarModal}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleEliminar}
+                disabled={guardando}
+                className="flex-1 px-6 py-3 bg-red-500 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-red-600 active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {guardando ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Stock */}
+      {modalTipo === 'stock' && productoSeleccionado && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl animate-scaleIn">
+            <div className="p-8 pb-2 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Editar stock</h2>
+                <p className="text-sm text-gray-500 mt-0.5">{productoSeleccionado.nombre}</p>
+              </div>
+              <button
+                onClick={cerrarModal}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-8 pt-6">
+              <label className="block text-sm font-medium text-gray-600 mb-2">Cantidad en stock</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.stock}
+                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white transition-all"
+                autoFocus
+              />
+              <p className="text-xs text-gray-400 mt-2">Stock actual: {productoSeleccionado.stock} unidades</p>
+            </div>
+            <div className="p-8 pt-4 flex gap-3 justify-end">
+              <button
+                onClick={cerrarModal}
+                className="px-6 py-3 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleActualizarStock}
+                disabled={guardando}
+                className="px-6 py-3 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {guardando ? 'Actualizando...' : 'Actualizar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  // --- RENDER PRINCIPAL ---
+
+  return (
+    <div className="bg-white min-h-full">
+      <div className="px-4 md:px-6 lg:px-8 py-6 md:py-12">
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 tracking-tight mb-1">
+            Kiosco
+          </h1>
+          <p className="text-gray-400 text-sm">
+            Gestiona el inventario y las ventas del kiosco
+          </p>
+        </div>
+
+        {/* Toast */}
+        {mensaje && (
+          <div className={`mb-6 px-5 py-4 rounded-xl border shadow-sm flex items-center gap-3 text-sm animate-slideUp ${
+            mensaje.tipo === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            {mensaje.tipo === 'success' ? (
+              <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            )}
+            {mensaje.texto}
+          </div>
+        )}
+
+        {/* Tabs pill-style */}
+        <div className="flex gap-1 bg-gray-100 rounded-full p-1 w-fit mb-8">
+          {tabs.map((tab) => (
+            <button
+              key={tab.valor}
+              onClick={() => { setTabActivo(tab.valor); setBusqueda(''); }}
+              className={`px-5 py-2 text-sm font-medium rounded-full transition-all ${
+                tabActivo === tab.valor
+                  ? 'bg-black text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Contenido del tab */}
+        {tabActivo === 'inventario' && renderInventario()}
+        {tabActivo === 'ventas' && renderVentas()}
+        {tabActivo === 'historial' && renderHistorial()}
+      </div>
+
+      {/* Modales */}
+      {renderModales()}
+    </div>
+  );
+};
+
+export default KioscoAdmin;

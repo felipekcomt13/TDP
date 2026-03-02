@@ -117,15 +117,15 @@ const LoginPage = () => {
           </p>
         </div>
 
-        <div className="bg-white border border-gray-200 p-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           {error && (
-            <div className="bg-gray-50 border-l-2 border-gray-800 text-gray-800 px-4 py-3 mb-6 text-sm">
+            <div className="bg-red-50 rounded-xl border border-red-200 text-red-800 px-4 py-3 mb-6 text-sm">
               {error}
             </div>
           )}
 
           {successMessage && (
-            <div className="bg-gray-50 border-l-2 border-black text-black px-4 py-3 mb-6 text-sm">
+            <div className="bg-green-50 rounded-xl border border-green-200 text-green-800 px-4 py-3 mb-6 text-sm">
               {successMessage}
             </div>
           )}
@@ -133,7 +133,7 @@ const LoginPage = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <div>
-                <label htmlFor="nombre" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
+                <label htmlFor="nombre" className="block text-sm font-medium text-gray-600 mb-2">
                   Nombre completo *
                 </label>
                 <input
@@ -142,7 +142,7 @@ const LoginPage = () => {
                   name="nombre"
                   value={formData.nombre}
                   onChange={handleChange}
-                  className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
                   placeholder="Juan Pérez"
                   required={!isLogin}
                 />
@@ -151,7 +151,7 @@ const LoginPage = () => {
 
             {!isLogin && (
               <div>
-                <label htmlFor="celular" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
+                <label htmlFor="celular" className="block text-sm font-medium text-gray-600 mb-2">
                   Número de celular *
                 </label>
                 <input
@@ -160,7 +160,7 @@ const LoginPage = () => {
                   name="celular"
                   value={formData.celular}
                   onChange={handleChange}
-                  className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
                   placeholder="987654321"
                   maxLength="9"
                   required={!isLogin}
@@ -171,7 +171,7 @@ const LoginPage = () => {
 
             {!isLogin && (
               <div>
-                <label htmlFor="dni" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
+                <label htmlFor="dni" className="block text-sm font-medium text-gray-600 mb-2">
                   DNI *
                 </label>
                 <input
@@ -180,7 +180,7 @@ const LoginPage = () => {
                   name="dni"
                   value={formData.dni}
                   onChange={handleChange}
-                  className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
                   placeholder="12345678"
                   maxLength="8"
                   required={!isLogin}
@@ -190,7 +190,7 @@ const LoginPage = () => {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-2">
                 Email *
               </label>
               <input
@@ -199,14 +199,14 @@ const LoginPage = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
                 placeholder="correo@ejemplo.com"
                 required
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-[10px] font-medium text-gray-500 mb-2 uppercase tracking-widest">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-2">
                 Contraseña *
               </label>
               <input
@@ -215,7 +215,7 @@ const LoginPage = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
                 placeholder="••••••••"
                 required
                 minLength={6}
@@ -227,7 +227,7 @@ const LoginPage = () => {
 
             <button
               type="submit"
-              className="w-full px-6 py-4 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors uppercase disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="w-full px-6 py-4 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
               disabled={loading}
             >
               {loading ? 'Procesando...' : (isLogin ? 'Iniciar Sesión' : 'Crear Cuenta')}
@@ -242,7 +242,7 @@ const LoginPage = () => {
                 setSuccessMessage('');
                 setFormData({ email: '', password: '', nombre: '', celular: '', dni: '' });
               }}
-              className="text-sm text-gray-600 hover:text-black transition-colors uppercase tracking-wide"
+              className="text-sm text-gray-600 hover:text-black transition-colors"
             >
               {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
             </button>
@@ -251,15 +251,15 @@ const LoginPage = () => {
           <div className="mt-6 text-center">
             <button
               onClick={() => navigate('/')}
-              className="text-xs text-gray-500 hover:text-gray-700 transition-colors uppercase tracking-widest"
+              className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
             >
               Volver al inicio
             </button>
           </div>
         </div>
 
-        <div className="mt-8 bg-gray-50 border-l-2 border-black p-6">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-semibold">
+        <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">
+          <p className="text-sm font-medium text-gray-600 mb-3">
             Nota
           </p>
           <p className="text-sm text-gray-700 leading-relaxed">

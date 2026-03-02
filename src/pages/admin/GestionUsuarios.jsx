@@ -145,8 +145,12 @@ const GestionUsuarios = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl font-bold text-black tracking-tight">Cargando...</p>
+        <div className="flex flex-col items-center gap-3">
+          <svg className="w-8 h-8 animate-spin text-black" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-sm text-gray-400">Cargando...</p>
         </div>
       </div>
     );
@@ -167,10 +171,10 @@ const GestionUsuarios = () => {
         {/* Mensaje de feedback */}
         {mensaje && (
           <div
-            className={`mb-6 px-6 py-4 border-l-2 ${
+            className={`mb-6 px-6 py-4 rounded-xl border ${
               mensaje.tipo === 'success'
-                ? 'bg-green-50 border-green-600 text-green-800'
-                : 'bg-red-50 border-red-600 text-red-800'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-red-50 border-red-200 text-red-800'
             }`}
           >
             {mensaje.texto}
@@ -188,7 +192,7 @@ const GestionUsuarios = () => {
               placeholder="Buscar por nombre o email..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 focus:border-black focus:outline-none bg-white text-black placeholder-gray-400 text-sm transition-colors"
+              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white text-black placeholder-gray-400 text-sm transition-all"
             />
           </div>
           <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400">
@@ -200,16 +204,16 @@ const GestionUsuarios = () => {
 
         {/* Lista de usuarios */}
         {usuariosFiltrados.length === 0 ? (
-          <div className="text-center py-16 border border-gray-200">
-            <p className="text-gray-400 text-sm uppercase tracking-widest">No se encontraron usuarios</p>
+          <div className="text-center py-16 bg-gray-50 rounded-2xl">
+            <p className="text-gray-400 text-sm">No se encontraron usuarios</p>
           </div>
         ) : (
           <div className="space-y-3">
             {usuariosFiltrados.map((usuario) => (
               <div
                 key={usuario.id}
-                className={`bg-white border p-6 transition-all hover:shadow-md ${
-                  usuario.role === 'admin' ? 'border-black' : 'border-gray-300'
+                className={`bg-white rounded-xl shadow-sm border p-6 transition-all hover:shadow-md ${
+                  usuario.role === 'admin' ? 'border-gray-900' : 'border-gray-100'
                 }`}
               >
                 <div className="flex flex-col lg:flex-row justify-between gap-4">
@@ -219,7 +223,7 @@ const GestionUsuarios = () => {
                         {usuario.nombre || 'Sin nombre'}
                       </h3>
                       <span
-                        className={`px-3 py-1 border text-[10px] font-semibold uppercase tracking-widest ${
+                        className={`px-3 py-1 border text-[10px] font-semibold rounded-full ${
                           usuario.role === 'admin'
                             ? 'border-black text-black bg-black bg-opacity-5'
                             : 'border-gray-400 text-gray-600'
@@ -256,14 +260,14 @@ const GestionUsuarios = () => {
                     {usuario.role === 'user' ? (
                       <button
                         onClick={() => cambiarRol(usuario.id, 'admin')}
-                        className="px-4 py-2 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+                        className="px-4 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
                       >
                         Hacer Admin
                       </button>
                     ) : (
                       <button
                         onClick={() => cambiarRol(usuario.id, 'user')}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                        className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
                       >
                         Quitar Admin
                       </button>
@@ -273,14 +277,14 @@ const GestionUsuarios = () => {
                     {usuario.es_socio ? (
                       <button
                         onClick={() => quitarSocio(usuario.id)}
-                        className="px-4 py-2 border border-red-300 text-red-700 text-xs font-medium tracking-widest hover:bg-red-50 transition-colors uppercase"
+                        className="px-4 py-2 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 active:scale-[0.98] transition-all"
                       >
                         Quitar Socio
                       </button>
                     ) : (
                       <button
                         onClick={() => setModalSocio(usuario)}
-                        className="px-4 py-2 bg-green-600 text-white text-xs font-medium tracking-widest hover:bg-green-700 transition-colors uppercase"
+                        className="px-4 py-2 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 active:scale-[0.98] transition-all"
                       >
                         Hacer Socio
                       </button>
@@ -293,8 +297,8 @@ const GestionUsuarios = () => {
         )}
 
         {/* Nota informativa */}
-        <div className="mt-8 bg-gray-50 border-l-2 border-black p-6">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-semibold">
+        <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">
+          <p className="text-sm font-medium text-gray-600 mb-3">
             Nota Importante
           </p>
           <ul className="text-sm text-gray-700 space-y-2">
@@ -316,8 +320,8 @@ const GestionUsuarios = () => {
 
       {/* Modal para activar membresía */}
       {modalSocio && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-md w-full p-8">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white max-w-md w-full p-8 rounded-2xl shadow-2xl">
             <h3 className="text-2xl font-bold text-black tracking-tight mb-2">
               ACTIVAR MEMBRESIA
             </h3>
@@ -327,13 +331,13 @@ const GestionUsuarios = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Duración
                 </label>
                 <select
                   value={formSocio.duracion}
                   onChange={(e) => setFormSocio({ ...formSocio, duracion: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm transition-all"
                 >
                   <option value="30">30 días (1 mes)</option>
                   <option value="90">90 días (3 meses)</option>
@@ -343,7 +347,7 @@ const GestionUsuarios = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Precio Pagado (S/)
                 </label>
                 <input
@@ -352,18 +356,18 @@ const GestionUsuarios = () => {
                   value={formSocio.precio}
                   onChange={(e) => setFormSocio({ ...formSocio, precio: e.target.value })}
                   placeholder="Ej: 50.00"
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm placeholder-gray-400 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Método de Pago
                 </label>
                 <select
                   value={formSocio.metodoPago}
                   onChange={(e) => setFormSocio({ ...formSocio, metodoPago: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm transition-all"
                 >
                   <option value="efectivo">Efectivo</option>
                   <option value="yape">Yape</option>
@@ -374,7 +378,7 @@ const GestionUsuarios = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Notas (opcional)
                 </label>
                 <textarea
@@ -382,7 +386,7 @@ const GestionUsuarios = () => {
                   onChange={(e) => setFormSocio({ ...formSocio, notas: e.target.value })}
                   placeholder="Notas adicionales..."
                   rows="2"
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm placeholder-gray-400 resize-none"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm placeholder-gray-400 transition-all resize-none"
                 />
               </div>
             </div>
@@ -393,13 +397,13 @@ const GestionUsuarios = () => {
                   setModalSocio(null);
                   resetFormSocio();
                 }}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => activarSocio(modalSocio.id)}
-                className="flex-1 px-6 py-3 bg-green-600 text-white text-xs font-medium tracking-widest hover:bg-green-700 transition-colors uppercase"
+                className="flex-1 px-6 py-3 bg-emerald-600 text-white text-xs font-medium rounded-lg hover:bg-emerald-700 active:scale-[0.98] transition-all"
               >
                 Activar Socio
               </button>

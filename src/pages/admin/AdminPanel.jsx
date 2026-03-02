@@ -88,7 +88,13 @@ const AdminPanel = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <p className="text-xl font-bold text-black tracking-tight">Cargando...</p>
+        <div className="flex flex-col items-center gap-3">
+          <svg className="w-8 h-8 animate-spin text-black" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-sm text-gray-400">Cargando...</p>
+        </div>
       </div>
     );
   }
@@ -106,28 +112,25 @@ const AdminPanel = () => {
         </div>
 
         {/* Tabs de estado */}
-        <div className="flex gap-1 overflow-x-auto pb-px mb-6 border-b border-gray-200 scrollbar-hide">
-          {tabs.map((tab) => (
-            <button
-              key={tab.valor}
-              onClick={() => setFiltro(tab.valor)}
-              className={`relative flex-shrink-0 px-4 py-2.5 text-xs font-medium tracking-wide uppercase transition-colors ${
-                filtro === tab.valor ? 'text-black' : 'text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              {tab.label}
-              {tab.count !== null && tab.count > 0 && (
-                <span className={`ml-1.5 text-[10px] ${
-                  filtro === tab.valor ? 'text-black' : 'text-gray-400'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
-              {filtro === tab.valor && (
-                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-black" />
-              )}
-            </button>
-          ))}
+        <div className="flex gap-1 overflow-x-auto mb-6 scrollbar-hide">
+          <div className="bg-gray-100 rounded-full p-1 flex gap-1">
+            {tabs.map((tab) => (
+              <button
+                key={tab.valor}
+                onClick={() => setFiltro(tab.valor)}
+                className={`flex-shrink-0 px-4 py-2 text-xs font-medium rounded-full transition-all ${
+                  filtro === tab.valor ? 'bg-black text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {tab.label}
+                {tab.count !== null && tab.count > 0 && (
+                  <span className="ml-1.5 text-[10px]">
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Toolbar: Búsqueda + Filtro cancha */}
@@ -141,7 +144,7 @@ const AdminPanel = () => {
               placeholder="Buscar por nombre, DNI, teléfono..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 focus:border-black focus:outline-none bg-white text-black placeholder-gray-400 text-sm transition-colors"
+              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white text-black placeholder-gray-400 text-sm transition-all"
             />
           </div>
           <div className="flex gap-1">
@@ -149,9 +152,9 @@ const AdminPanel = () => {
               <button
                 key={c.valor}
                 onClick={() => setFiltroCancha(c.valor)}
-                className={`px-3 py-2 text-[11px] font-medium tracking-wide transition-colors ${
+                className={`px-3 py-2 text-[11px] font-medium rounded-full transition-all ${
                   filtroCancha === c.valor
-                    ? 'bg-black text-white'
+                    ? 'bg-black text-white shadow-sm'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -163,7 +166,7 @@ const AdminPanel = () => {
 
         {/* Lista de reservas */}
         {reservasFiltradas.length === 0 ? (
-          <div className="text-center py-16 border border-gray-200">
+          <div className="text-center py-16 bg-gray-50 rounded-2xl">
             <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
@@ -183,12 +186,12 @@ const AdminPanel = () => {
               return (
                 <div
                   key={reserva.id}
-                  className={`border p-4 md:p-5 transition-all ${
+                  className={`rounded-xl border p-4 md:p-5 transition-all ${
                     esRechazada
-                      ? 'border-gray-200 opacity-50'
+                      ? 'border-gray-100 opacity-50'
                       : esPendiente
-                      ? 'border-yellow-300 bg-yellow-50/30'
-                      : 'border-gray-200 hover:border-gray-400'
+                      ? 'border-yellow-200 bg-yellow-50/30 shadow-sm'
+                      : 'border-gray-100 bg-white shadow-sm hover:shadow-md'
                   }`}
                 >
                   <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
@@ -208,7 +211,7 @@ const AdminPanel = () => {
                         <h3 className="text-base font-bold text-black tracking-tight">
                           {reserva.nombre}
                         </h3>
-                        <span className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
+                        <span className={`px-2.5 py-0.5 text-[10px] font-semibold rounded-full ${
                           esPendiente
                             ? 'bg-yellow-100 text-yellow-700'
                             : reserva.estado === 'confirmada'
@@ -218,8 +221,8 @@ const AdminPanel = () => {
                           {reserva.estado}
                         </span>
                         {!reserva.userId && (
-                          <span className="px-2 py-0.5 text-[10px] font-medium tracking-widest bg-gray-100 text-gray-400">
-                            SIN CUENTA
+                          <span className="px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-gray-100 text-gray-400">
+                            Sin cuenta
                           </span>
                         )}
                       </div>
@@ -261,13 +264,13 @@ const AdminPanel = () => {
                       <div className="flex gap-2 flex-shrink-0">
                         <button
                           onClick={() => confirmarReserva(reserva.id)}
-                          className="px-4 py-2 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+                          className="px-4 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
                         >
                           Confirmar
                         </button>
                         <button
                           onClick={() => rechazarReserva(reserva.id)}
-                          className="px-4 py-2 border border-gray-300 text-gray-500 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                          className="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
                         >
                           Rechazar
                         </button>

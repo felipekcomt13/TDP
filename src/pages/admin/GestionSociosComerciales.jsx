@@ -236,8 +236,12 @@ const GestionSociosComerciales = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl font-bold text-black tracking-tight">Cargando...</p>
+        <div className="flex flex-col items-center gap-3">
+          <svg className="w-8 h-8 animate-spin text-black" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="text-sm text-gray-400">Cargando...</p>
         </div>
       </div>
     );
@@ -258,10 +262,10 @@ const GestionSociosComerciales = () => {
         {/* Mensaje de feedback */}
         {mensaje && (
           <div
-            className={`mb-6 px-6 py-4 border-l-2 ${
+            className={`mb-6 px-6 py-4 rounded-xl border ${
               mensaje.tipo === 'success'
-                ? 'bg-green-50 border-green-600 text-green-800'
-                : 'bg-red-50 border-red-600 text-red-800'
+                ? 'bg-green-50 border-green-200 text-green-800'
+                : 'bg-red-50 border-red-200 text-red-800'
             }`}
           >
             {mensaje.texto}
@@ -272,7 +276,7 @@ const GestionSociosComerciales = () => {
         <div className="flex items-center gap-3 mb-8">
           <button
             onClick={abrirModalAgregar}
-            className="flex-shrink-0 px-5 py-2.5 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase flex items-center gap-2"
+            className="flex-shrink-0 px-5 py-2.5 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -288,7 +292,7 @@ const GestionSociosComerciales = () => {
               placeholder="Buscar..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 focus:border-black focus:outline-none bg-white text-black placeholder-gray-400 text-sm transition-colors"
+              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white text-black placeholder-gray-400 text-sm transition-all"
             />
           </div>
           <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400">
@@ -300,8 +304,8 @@ const GestionSociosComerciales = () => {
 
         {/* Grid de socios */}
         {sociosFiltrados.length === 0 ? (
-          <div className="text-center py-16 border border-gray-200">
-            <p className="text-gray-400 text-sm uppercase tracking-widest">
+          <div className="text-center py-16 bg-gray-50 rounded-2xl">
+            <p className="text-gray-400 text-sm">
               {busqueda ? 'No se encontraron resultados' : 'No hay socios comerciales registrados'}
             </p>
           </div>
@@ -315,10 +319,10 @@ const GestionSociosComerciales = () => {
                 onDragOver={(e) => dragEnabled && handleDragOver(e, socio.id)}
                 onDrop={(e) => dragEnabled && handleDrop(e, socio.id)}
                 onDragEnd={handleDragEnd}
-                className={`bg-white border p-5 transition-all ${
+                className={`bg-white rounded-xl shadow-sm border p-5 transition-all ${
                   dragEnabled ? 'cursor-grab active:cursor-grabbing' : ''
                 } ${
-                  socio.activo ? 'border-gray-300 hover:border-black hover:shadow-md' : 'border-gray-200 bg-gray-50 opacity-70'
+                  socio.activo ? 'border-gray-100 hover:shadow-md' : 'border-gray-100 bg-gray-50 opacity-70'
                 } ${
                   draggedId === socio.id ? 'opacity-40 scale-95' : ''
                 } ${
@@ -353,7 +357,7 @@ const GestionSociosComerciales = () => {
                       {socio.nombre}
                     </h3>
                   </div>
-                  <span className="inline-block px-2 py-0.5 text-[10px] font-medium uppercase tracking-widest bg-gray-100 text-gray-600 mb-2">
+                  <span className="inline-block px-2.5 py-0.5 text-[10px] font-semibold bg-gray-100 text-gray-600 rounded-full mb-2">
                     {categoriaLabel(socio.categoria)}
                   </span>
                   <p className="text-sm text-gray-500 line-clamp-2">
@@ -365,7 +369,7 @@ const GestionSociosComerciales = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleToggleActivo(socio.id)}
-                    className={`px-3 py-1.5 text-[10px] font-medium uppercase tracking-widest border transition-colors ${
+                    className={`px-3 py-1.5 text-[10px] font-semibold rounded-full border transition-all ${
                       socio.activo
                         ? 'border-green-300 text-green-700 bg-green-50 hover:bg-green-100'
                         : 'border-gray-300 text-gray-500 bg-gray-50 hover:bg-gray-100'
@@ -376,7 +380,7 @@ const GestionSociosComerciales = () => {
                   <div className="flex-1" />
                   <button
                     onClick={() => abrirModalEditar(socio)}
-                    className="w-9 h-9 flex items-center justify-center border border-gray-300 hover:bg-gray-100 transition-colors"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 transition-all"
                     title="Editar"
                   >
                     <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,7 +389,7 @@ const GestionSociosComerciales = () => {
                   </button>
                   <button
                     onClick={() => abrirModalEliminar(socio)}
-                    className="w-9 h-9 flex items-center justify-center border border-red-300 hover:bg-red-50 transition-colors"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-red-200 hover:bg-red-50 transition-all"
                     title="Eliminar"
                   >
                     <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -399,8 +403,8 @@ const GestionSociosComerciales = () => {
         )}
 
         {/* Nota informativa */}
-        <div className="mt-8 bg-gray-50 border-l-2 border-black p-6">
-          <p className="text-[10px] uppercase tracking-widest text-gray-500 mb-3 font-semibold">
+        <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">
+          <p className="text-sm font-medium text-gray-600 mb-3">
             Nota
           </p>
           <ul className="text-sm text-gray-700 space-y-2">
@@ -422,8 +426,8 @@ const GestionSociosComerciales = () => {
 
       {/* Modal Agregar / Editar */}
       {(modalTipo === 'agregar' || modalTipo === 'editar') && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-md w-full p-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white max-w-md w-full p-8 max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
             <h3 className="text-2xl font-bold text-black tracking-tight mb-2">
               {modalTipo === 'agregar' ? 'AGREGAR SOCIO' : 'EDITAR SOCIO'}
             </h3>
@@ -435,7 +439,7 @@ const GestionSociosComerciales = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Nombre *
                 </label>
                 <input
@@ -443,18 +447,18 @@ const GestionSociosComerciales = () => {
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   placeholder="Nombre del comercio"
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm placeholder-gray-400"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm placeholder-gray-400 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Categoría *
                 </label>
                 <select
                   value={formData.categoria}
                   onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm transition-all"
                 >
                   {CATEGORIAS.map(cat => (
                     <option key={cat.valor} value={cat.valor}>{cat.label}</option>
@@ -463,7 +467,7 @@ const GestionSociosComerciales = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Beneficio para socios *
                 </label>
                 <textarea
@@ -471,12 +475,12 @@ const GestionSociosComerciales = () => {
                   onChange={(e) => setFormData({ ...formData, beneficio: e.target.value })}
                   placeholder="Ej: 15% de descuento en todos los productos"
                   rows="2"
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm placeholder-gray-400 resize-none"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm placeholder-gray-400 resize-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Descripción (opcional)
                 </label>
                 <textarea
@@ -484,12 +488,12 @@ const GestionSociosComerciales = () => {
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   placeholder="Breve descripción del comercio"
                   rows="2"
-                  className="w-full px-4 py-3 border border-gray-300 focus:border-black focus:outline-none text-black text-sm placeholder-gray-400 resize-none"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm placeholder-gray-400 resize-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 font-semibold">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
                   Logo (opcional)
                 </label>
 
@@ -497,7 +501,7 @@ const GestionSociosComerciales = () => {
                 {previewLogo ? (
                   <div className="border border-gray-200 p-3 mb-3">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-[10px] uppercase tracking-widest text-gray-400">Preview</p>
+                      <p className="text-xs text-gray-400">Preview</p>
                       <button
                         type="button"
                         onClick={quitarLogo}
@@ -517,7 +521,7 @@ const GestionSociosComerciales = () => {
                 ) : null}
 
                 {/* Input archivo */}
-                <label className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed border-gray-300 hover:border-black cursor-pointer transition-colors">
+                <label className="flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed border-gray-300 rounded-lg hover:border-gray-500 cursor-pointer transition-all">
                   <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -538,14 +542,14 @@ const GestionSociosComerciales = () => {
             <div className="flex gap-3 mt-8">
               <button
                 onClick={cerrarModal}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleGuardar}
                 disabled={subiendo}
-                className="flex-1 px-6 py-3 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-6 py-3 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {subiendo ? 'Guardando...' : modalTipo === 'agregar' ? 'Agregar' : 'Guardar'}
               </button>
@@ -556,8 +560,8 @@ const GestionSociosComerciales = () => {
 
       {/* Modal Confirmar Eliminación */}
       {modalTipo === 'eliminar' && socioSeleccionado && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white max-w-sm w-full p-8">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white max-w-sm w-full p-8 rounded-2xl shadow-2xl">
             <h3 className="text-2xl font-bold text-black tracking-tight mb-2">
               ELIMINAR SOCIO
             </h3>
@@ -568,13 +572,13 @@ const GestionSociosComerciales = () => {
             <div className="flex gap-3">
               <button
                 onClick={cerrarModal}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleEliminar}
-                className="flex-1 px-6 py-3 bg-red-600 text-white text-xs font-medium tracking-widest hover:bg-red-700 transition-colors uppercase"
+                className="flex-1 px-6 py-3 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 active:scale-[0.98] transition-all"
               >
                 Eliminar
               </button>

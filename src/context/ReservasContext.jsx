@@ -134,9 +134,17 @@ export const ReservasProvider = ({ children }) => {
   };
 
   const editarReserva = async (id, datosActualizados) => {
+    // Whitelist de campos editables para evitar manipulacion de estado u otros campos sensibles
+    const camposPermitidos = ['nombre', 'telefono', 'email', 'dni', 'fecha', 'hora', 'hora_fin', 'dia_semana', 'notas', 'cancha', 'deporte'];
+    const datosFiltrados = Object.fromEntries(
+      Object.entries(datosActualizados).filter(([key]) => camposPermitidos.includes(key))
+    );
+
+    if (Object.keys(datosFiltrados).length === 0) return;
+
     const { error } = await supabase
       .from('reservas')
-      .update(datosActualizados)
+      .update(datosFiltrados)
       .eq('id', id);
 
     if (error) throw error;

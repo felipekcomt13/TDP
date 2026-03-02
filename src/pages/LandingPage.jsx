@@ -146,9 +146,9 @@ const LandingPage = () => {
                 href="https://wa.me/51974341064?text=Quiero%20participar%20en%20el%203%20x%203"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-6 sm:mt-8 inline-block px-8 sm:px-12 py-3 sm:py-4 bg-white text-black text-xs sm:text-sm font-bold tracking-widest uppercase hover:bg-gray-200 transition-all shadow-lg hover:shadow-xl animate-stagger-3"
+                className="mt-6 sm:mt-8 inline-block px-8 sm:px-12 py-3 sm:py-4 bg-white text-black text-xs sm:text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-gray-200 active:scale-[0.98] transition-all animate-stagger-3"
               >
-                PARTICIPAR AHORA
+                Participar ahora
               </a>
             )}
           </div>
@@ -172,10 +172,10 @@ const LandingPage = () => {
             {pasos.map((paso) => (
               <div
                 key={paso.numero}
-                className="flex gap-6 items-start p-6 bg-gray-50 border-l-2 border-black hover:shadow-md transition-shadow"
+                className="flex gap-6 items-start p-6 bg-gray-50 rounded-xl border border-gray-200 hover:shadow-md transition-all"
               >
                 <div className="flex-shrink-0">
-                  <div className="w-16 h-16 bg-black text-white flex items-center justify-center">
+                  <div className="w-16 h-16 bg-black text-white rounded-xl flex items-center justify-center">
                     <span className="text-2xl font-bold">{paso.numero}</span>
                   </div>
                 </div>
@@ -195,11 +195,11 @@ const LandingPage = () => {
           <div className="text-center mt-16">
             <Link
               to="/reservar"
-              className="inline-block px-16 py-5 bg-black text-white text-lg font-bold tracking-widest uppercase hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl"
+              className="inline-block px-16 py-5 bg-black text-white text-lg font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
             >
-              RESERVAR AHORA
+              Reservar ahora
             </Link>
-            <p className="text-xs text-gray-500 mt-4 uppercase tracking-wide">
+            <p className="text-xs text-gray-500 mt-4">
               Proceso rápido y seguro
             </p>
           </div>
@@ -214,7 +214,7 @@ const LandingPage = () => {
               Información de Contacto
             </h2>
 
-            <div className="bg-white border-l-2 border-black p-8">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
                   <p className="text-xs font-semibold text-gray-500 mb-2">
@@ -271,14 +271,14 @@ const LandingPage = () => {
       {/* Footer CTA */}
       <div className="bg-black text-white py-12 text-center">
         <div className="px-6">
-          <p className="text-sm uppercase tracking-widest text-gray-400 mb-4">
+          <p className="text-sm text-gray-400 mb-4">
             ¿Listo para jugar?
           </p>
           <Link
             to="/reservar"
-            className="inline-block px-12 py-4 bg-white text-black font-bold text-sm tracking-widest uppercase hover:bg-gray-200 transition-all shadow-lg hover:shadow-xl"
+            className="inline-block px-12 py-4 bg-white text-black font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-gray-200 active:scale-[0.98] transition-all"
           >
-            IR AL CALENDARIO
+            Ir al calendario
           </Link>
         </div>
       </div>

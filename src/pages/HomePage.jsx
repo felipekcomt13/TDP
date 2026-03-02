@@ -32,9 +32,9 @@ const HomePage = () => {
             RESERVAS
           </h1>
           {reservasBloqueadas ? (
-            <div className="mt-4 border-2 border-black bg-black text-white px-6 py-4 text-center">
-              <p className="text-sm font-bold tracking-widest uppercase">
-                LAS RESERVAS ABREN EL 4 DE MARZO
+            <div className="mt-4 bg-gray-900 text-white px-6 py-4 text-center rounded-xl">
+              <p className="text-sm font-bold">
+                Las reservas abren el 4 de marzo
               </p>
             </div>
           ) : (

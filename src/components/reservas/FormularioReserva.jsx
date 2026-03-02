@@ -229,23 +229,23 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
   // Si está redirigiendo, mostrar mensaje de countdown
   if (redirigiendo) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-        <div className="bg-white max-w-md w-full p-12 text-center border border-gray-200 animate-scaleIn">
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+        <div className="bg-white max-w-md w-full p-12 text-center rounded-2xl shadow-2xl animate-scaleIn">
           <div className="mb-8">
-            <div className="w-24 h-24 bg-black flex items-center justify-center mx-auto mb-6">
+            <div className="w-24 h-24 bg-black rounded-2xl flex items-center justify-center mx-auto mb-6">
               <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
             <h2 className="text-3xl font-bold text-black mb-3 tracking-tight">RESERVA CREADA</h2>
-            <p className="text-gray-600 text-sm mb-6 uppercase tracking-wide">
+            <p className="text-gray-600 text-sm mb-6">
               Redirigiendo a WhatsApp
             </p>
-            <div className="bg-gray-50 border border-gray-200 p-6 mb-6">
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-6">
               <p className="text-black font-bold text-5xl mb-2">
                 {countdown}
               </p>
-              <p className="text-xs text-gray-500 uppercase tracking-widest">
+              <p className="text-xs text-gray-500">
                 segundo{countdown !== 1 ? 's' : ''}
               </p>
             </div>
@@ -264,7 +264,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
                   setTimeout(() => setCopiado(false), 2000);
                 });
               }}
-              className="px-6 py-3 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors uppercase"
+              className="px-6 py-3 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
             >
               {copiado ? 'Copiado' : 'Copiar mensaje'}
             </button>
@@ -275,7 +275,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
                 setCopiado(false);
                 onCerrar();
               }}
-              className="px-6 py-3 border border-gray-300 text-gray-700 text-sm font-medium tracking-wide hover:bg-gray-50 transition-colors uppercase"
+              className="px-6 py-3 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
             >
               Cancelar
             </button>
@@ -286,8 +286,8 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-      <div className="bg-white max-w-lg w-full max-h-[90vh] overflow-y-auto border border-gray-200 animate-scaleIn">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+      <div className="bg-white max-w-lg w-full max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl animate-scaleIn">
         <div className="sticky top-0 bg-white z-10 p-6 pb-4 border-b border-gray-100">
           <div className="flex justify-between items-start">
             <div>
@@ -304,7 +304,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
         </div>
 
         <div className="p-6 pt-4">
-          <div className="bg-gray-50 border-l-2 border-black p-4 mb-4">
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 mb-4">
           <div className="grid grid-cols-3 gap-4 text-sm">
             <div>
               <p className="text-xs font-medium text-gray-500 mb-1">Cancha</p>
@@ -341,30 +341,30 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, deporte: 'basket' }))}
-              className={`flex-1 px-4 py-2 text-sm font-medium tracking-wide transition-colors ${
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                 formData.deporte === 'basket'
-                  ? 'bg-black text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-black text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              BÁSQUET
+              Básquet
             </button>
             <button
               type="button"
               onClick={() => setFormData(prev => ({ ...prev, deporte: 'voley' }))}
-              className={`flex-1 px-4 py-2 text-sm font-medium tracking-wide transition-colors ${
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
                 formData.deporte === 'voley'
-                  ? 'bg-black text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-black text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              VÓLEY
+              Vóley
             </button>
           </div>
         </div>
 
         {error && (
-          <div className="bg-gray-50 border-l-2 border-gray-800 text-gray-800 px-4 py-3 mb-4 text-sm">
+          <div className="bg-red-50 rounded-xl border border-red-200 text-red-800 px-4 py-3 mb-4 text-sm">
             {error}
           </div>
         )}
@@ -382,7 +382,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
                 name="nombre"
                 value={formData.nombre}
                 onChange={handleChange}
-                className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
                 placeholder="Juan Pérez"
                 required
               />
@@ -398,7 +398,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
                 name="dni"
                 value={formData.dni}
                 onChange={handleChange}
-                className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
                 placeholder="12345678"
                 maxLength="8"
                 pattern="\d*"
@@ -419,7 +419,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
                 name="telefono"
                 value={formData.telefono}
                 onChange={handleChange}
-                className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
                 placeholder="999 999 999"
               />
             </div>
@@ -434,7 +434,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 transition-colors"
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
                 placeholder="correo@ejemplo.com"
               />
             </div>
@@ -450,20 +450,20 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
               value={formData.notas}
               onChange={handleChange}
               rows="2"
-              className="w-full px-0 py-2 border-0 border-b-2 border-gray-300 focus:border-black focus:outline-none bg-transparent text-black placeholder-gray-400 resize-none transition-colors"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 resize-none transition-all"
               placeholder="Información adicional..."
             />
           </div>
 
           {/* Sección de costo total */}
-          <div className="bg-gray-50 border-l-2 border-black p-4">
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-semibold text-gray-500">
                 Total a pagar
               </h3>
               {usuarioEsSocio && (
-                <span className="px-2 py-1 bg-black text-white text-[10px] font-semibold uppercase tracking-widest">
-                  Tarifa Socio
+                <span className="px-2.5 py-1 bg-black text-white text-[10px] font-semibold rounded-full">
+                  Tarifa socio
                 </span>
               )}
             </div>
@@ -489,14 +489,14 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
             <button
               type="button"
               onClick={onCerrar}
-              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 text-sm font-medium tracking-wide hover:bg-gray-50 transition-colors uppercase disabled:opacity-50"
+              className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all disabled:opacity-50"
               disabled={loading}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 px-6 py-3 bg-black text-white text-sm font-medium tracking-wide hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl uppercase disabled:bg-gray-400 disabled:cursor-not-allowed disabled:shadow-none"
+              className="flex-1 px-6 py-3 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:bg-gray-400 disabled:cursor-not-allowed disabled:shadow-none"
               disabled={loading}
             >
               {loading ? 'Procesando...' : 'Confirmar'}

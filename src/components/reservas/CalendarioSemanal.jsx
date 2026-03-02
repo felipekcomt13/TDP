@@ -9,7 +9,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
   const [fechaActual, setFechaActual] = useState(new Date());
   const [rangoSeleccion, setRangoSeleccion] = useState(null); // { fecha, horaInicio, dia, diaFecha, cancha }
   const [rangoHover, setRangoHover] = useState(null); // { horaFin, horas, esValido }
-  const [vistaCancha, setVistaCancha] = useState('principal'); // 'principal' o 'anexas'
+  const [vistaCancha, setVistaCancha] = useState('anexas'); // 'principal' o 'anexas'
   const [showScrollIndicators, setShowScrollIndicators] = useState({ left: false, right: false });
   const scrollContainerRef = useRef(null);
 
@@ -75,6 +75,19 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
 
   // Fecha desde la cual se permiten reservas en el calendario (4 de marzo de 2026 - miércoles de apertura)
   const FECHA_INICIO_RESERVAS = new Date(2026, 2, 4); // 4 de marzo de 2026 (mes 2 = marzo)
+
+  // Canchas en mantenimiento (el día indicado en "hasta" ya están disponibles)
+  const CANCHAS_EN_MANTENIMIENTO = {
+    canchas: ['principal', 'anexa-1'],
+    hasta: new Date(2026, 2, 9), // 9 de marzo 2026
+  };
+
+  const esCanchaEnMantenimiento = (cancha, fecha) => {
+    if (!CANCHAS_EN_MANTENIMIENTO.canchas.includes(cancha)) return false;
+    const fechaComparar = new Date(fecha);
+    fechaComparar.setHours(0, 0, 0, 0);
+    return fechaComparar < CANCHAS_EN_MANTENIMIENTO.hasta;
+  };
 
   // Función para verificar si una fecha/hora ya pasó o está antes de la inauguración
   const esHoraPasada = (fecha, hora) => {
@@ -173,7 +186,7 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
 
   // Función auxiliar para renderizar una celda de cancha
   const renderizarCelda = (dia, hora, cancha, diaIndex) => {
-    const { disponible, reserva, estaBloqueada, canchaQueBloquea, horaPasada } = obtenerEstadoCelda(dia, hora, cancha);
+    const { disponible, reserva, estaBloqueada, canchaQueBloquea, horaPasada, enMantenimiento } = obtenerEstadoCelda(dia, hora, cancha);
     const fechaStr = format(dia, 'yyyy-MM-dd');
 
     // Verificar si esta celda es parte de un bloque multi-hora pero no es la primera
@@ -218,7 +231,10 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
     // Determinar clases CSS
     let clasesCelda = 'p-1.5 md:p-3 border-r border-gray-200 text-center transition-all duration-75 ';
 
-    if (horaPasada && (!reserva || !isAdmin())) {
+    if (enMantenimiento) {
+      // Cancha en mantenimiento
+      clasesCelda += 'bg-amber-50 text-amber-600 cursor-not-allowed';
+    } else if (horaPasada && (!reserva || !isAdmin())) {
       // Hora ya pasada - no disponible (para usuarios normales oculta todo, para admin solo si no hay reserva)
       clasesCelda += 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-70';
     } else if (estaBloqueada) {
@@ -262,11 +278,16 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       <td
         key={`${diaIndex}-${cancha}`}
         rowSpan={rowspan}
-        onClick={() => (!horaPasada && !estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarClickCelda(dia, hora, disponible || reserva?.estado === 'pendiente', cancha)}
-        onMouseEnter={() => (!horaPasada && !estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarMouseEnter(dia, hora)}
+        onClick={() => (!enMantenimiento && !horaPasada && !estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarClickCelda(dia, hora, disponible || reserva?.estado === 'pendiente', cancha)}
+        onMouseEnter={() => (!enMantenimiento && !horaPasada && !estaBloqueada && (disponible || reserva?.estado === 'pendiente')) && manejarMouseEnter(dia, hora)}
         className={clasesCelda}
       >
-        {horaPasada && (!reserva || !isAdmin()) ? (
+        {enMantenimiento ? (
+          <div className="text-[10px] md:text-xs">
+            <svg className="w-3.5 h-3.5 mx-auto mb-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <span className="hidden md:inline font-semibold text-amber-600">Mantenimiento</span>
+          </div>
+        ) : horaPasada && (!reserva || !isAdmin()) ? (
           <div className="text-[10px] md:text-xs">
             <span className="font-semibold block text-[10px] md:text-xs">
               —
@@ -383,7 +404,9 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       }
     }
 
-    return { disponible, reserva, estaBloqueada, canchasBloqueadas, canchaQueBloquea, horaPasada };
+    const enMantenimiento = esCanchaEnMantenimiento(cancha, fecha);
+
+    return { disponible, reserva, estaBloqueada, canchasBloqueadas, canchaQueBloquea, horaPasada, enMantenimiento };
   };
 
   const cancelarSeleccion = () => {
@@ -533,13 +556,14 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const antesDeInauguracion = hoy < FECHA_INICIO_RESERVAS;
+  const hayMantenimientoActivo = hoy < CANCHAS_EN_MANTENIMIENTO.hasta;
 
   return (
     <div className="w-full">
       {/* Banner de inauguración */}
       {antesDeInauguracion && (
-        <div className="mb-6 bg-black text-white p-6 border-l-4 border-yellow-400">
-          <p className="text-xs uppercase tracking-wider text-yellow-400 mb-2 font-semibold">
+        <div className="mb-6 bg-gray-900 text-white p-6 rounded-xl">
+          <p className="text-xs text-yellow-400 mb-2 font-semibold">
             Próxima Apertura
           </p>
           <p className="text-xl md:text-2xl font-bold mb-2">
@@ -551,13 +575,28 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
         </div>
       )}
 
+      {/* Banner de mantenimiento */}
+      {hayMantenimientoActivo && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 text-amber-900 p-6 rounded-xl">
+          <p className="text-xs text-amber-600 mb-2 font-semibold uppercase tracking-wide">
+            Mantenimiento
+          </p>
+          <p className="text-base md:text-lg font-bold mb-1">
+            Cancha Principal y Anexa 1 en mantenimiento
+          </p>
+          <p className="text-sm text-amber-700">
+            Disponibles a partir del lunes 9 de marzo. La Cancha Anexa 2 sigue operativa.
+          </p>
+        </div>
+      )}
+
       {/* Navegación de semanas */}
       <div className="flex items-center justify-between mb-6 md:mb-8 gap-2">
         <button
           onClick={() => cambiarSemana(-1)}
-          className="px-3 py-2 md:px-6 md:py-3 bg-black text-white text-xs md:text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors"
+          className="px-3 py-2 md:px-6 md:py-3 bg-black text-white text-xs md:text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
         >
-          <span className="hidden sm:inline">← ANTERIOR</span>
+          <span className="hidden sm:inline">← Anterior</span>
           <span className="sm:hidden">←</span>
         </button>
         <h2 className="text-base md:text-2xl font-bold tracking-tight uppercase text-center">
@@ -565,51 +604,53 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
         </h2>
         <button
           onClick={() => cambiarSemana(1)}
-          className="px-3 py-2 md:px-6 md:py-3 bg-black text-white text-xs md:text-sm font-medium tracking-wide hover:bg-gray-800 transition-colors"
+          className="px-3 py-2 md:px-6 md:py-3 bg-black text-white text-xs md:text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
         >
-          <span className="hidden sm:inline">SIGUIENTE →</span>
+          <span className="hidden sm:inline">Siguiente →</span>
           <span className="sm:hidden">→</span>
         </button>
       </div>
 
       {/* Selector de vista de cancha */}
-      <div className="mb-4 md:mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2">
-        <button
-          onClick={() => {
-            setVistaCancha('principal');
-            cancelarSeleccion();
-          }}
-          className={`px-4 py-2 md:px-8 md:py-3 text-xs md:text-sm font-medium tracking-wide transition-colors ${
-            vistaCancha === 'principal'
-              ? 'bg-black text-white'
-              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          CANCHA PRINCIPAL
-        </button>
-        <button
-          onClick={() => {
-            setVistaCancha('anexas');
-            cancelarSeleccion();
-          }}
-          className={`px-4 py-2 md:px-8 md:py-3 text-xs md:text-sm font-medium tracking-wide transition-colors ${
-            vistaCancha === 'anexas'
-              ? 'bg-black text-white'
-              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          CANCHAS ANEXAS
-        </button>
+      <div className="mb-4 md:mb-6 flex justify-center">
+        <div className="bg-gray-100 rounded-full p-1 flex gap-1">
+          <button
+            onClick={() => {
+              setVistaCancha('principal');
+              cancelarSeleccion();
+            }}
+            className={`px-4 py-2 md:px-8 md:py-2.5 text-xs md:text-sm font-medium rounded-full transition-all ${
+              vistaCancha === 'principal'
+                ? 'bg-black text-white shadow-sm'
+                : 'text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Cancha Principal
+          </button>
+          <button
+            onClick={() => {
+              setVistaCancha('anexas');
+              cancelarSeleccion();
+            }}
+            className={`px-4 py-2 md:px-8 md:py-2.5 text-xs md:text-sm font-medium rounded-full transition-all ${
+              vistaCancha === 'anexas'
+                ? 'bg-black text-white shadow-sm'
+                : 'text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Canchas Anexas
+          </button>
+        </div>
       </div>
 
       {/* Indicador de selección en progreso */}
       {rangoSeleccion && (
-        <div className={`mb-4 md:mb-6 p-4 md:p-6 border ${
+        <div className={`mb-4 md:mb-6 p-4 md:p-6 rounded-xl border ${
           rangoHover && !rangoHover.esValido
-            ? 'bg-gray-50 border-gray-400'
+            ? 'bg-gray-50 border-gray-300'
             : rangoHover
-            ? 'bg-gray-50 border-black'
-            : 'bg-gray-50 border-gray-300'
+            ? 'bg-gray-50 border-gray-200'
+            : 'bg-gray-50 border-gray-200'
         }`}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex-1">
@@ -643,9 +684,9 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
             </div>
             <button
               onClick={cancelarSeleccion}
-              className="w-full sm:w-auto px-4 md:px-6 py-2 border border-gray-300 text-gray-700 text-xs md:text-sm font-medium tracking-wide hover:bg-gray-100 transition-colors"
+              className="w-full sm:w-auto px-4 md:px-6 py-2 bg-gray-100 text-gray-700 text-xs md:text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
             >
-              CANCELAR
+              Cancelar
             </button>
           </div>
         </div>
@@ -763,17 +804,23 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
       {/* Leyenda */}
       <div className="mt-4 md:mt-6 flex gap-3 md:gap-6 justify-center text-[10px] md:text-xs flex-wrap px-2">
         <div className="flex items-center gap-1.5 md:gap-2">
-          <div className="w-4 h-4 md:w-6 md:h-6 bg-white border border-gray-300"></div>
-          <span className="uppercase tracking-wide text-gray-600">Disponible</span>
+          <div className="w-4 h-4 md:w-6 md:h-6 bg-white border border-gray-300 rounded"></div>
+          <span className="text-gray-600">Disponible</span>
         </div>
         <div className="flex items-center gap-1.5 md:gap-2">
-          <div className="w-4 h-4 md:w-6 md:h-6 bg-yellow-50 border border-yellow-200"></div>
-          <span className="uppercase tracking-wide text-gray-600">Pendiente (puedes solicitar)</span>
+          <div className="w-4 h-4 md:w-6 md:h-6 bg-yellow-50 border border-yellow-200 rounded"></div>
+          <span className="text-gray-600">Pendiente</span>
         </div>
         <div className="flex items-center gap-1.5 md:gap-2">
-          <div className="w-4 h-4 md:w-6 md:h-6 bg-black border border-black"></div>
-          <span className="uppercase tracking-wide text-gray-600">Confirmado (bloqueado)</span>
+          <div className="w-4 h-4 md:w-6 md:h-6 bg-black border border-black rounded"></div>
+          <span className="text-gray-600">Confirmado</span>
         </div>
+        {hayMantenimientoActivo && (
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <div className="w-4 h-4 md:w-6 md:h-6 bg-amber-50 border border-amber-200 rounded"></div>
+            <span className="text-gray-600">Mantenimiento</span>
+          </div>
+        )}
       </div>
     </div>
   );

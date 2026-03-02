@@ -62,26 +62,25 @@ const ListaReservas = () => {
   return (
     <div className="w-full">
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-px mb-6 border-b border-gray-200 scrollbar-hide">
-        {tabs.map((tab) => (
-          <button
-            key={tab.valor}
-            onClick={() => setFiltro(tab.valor)}
-            className={`relative flex-shrink-0 px-4 py-2.5 text-xs font-medium tracking-wide uppercase transition-colors ${
-              filtro === tab.valor ? 'text-black' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            {tab.label}
-            {tab.count !== undefined && tab.count > 0 && (
-              <span className={`ml-1.5 text-[10px] ${filtro === tab.valor ? 'text-black' : 'text-gray-400'}`}>
-                {tab.count}
-              </span>
-            )}
-            {filtro === tab.valor && (
-              <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-black" />
-            )}
-          </button>
-        ))}
+      <div className="flex gap-1 overflow-x-auto mb-6 scrollbar-hide">
+        <div className="bg-gray-100 rounded-full p-1 flex gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.valor}
+              onClick={() => setFiltro(tab.valor)}
+              className={`flex-shrink-0 px-4 py-2 text-xs font-medium rounded-full transition-all ${
+                filtro === tab.valor ? 'bg-black text-white shadow-sm' : 'text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {tab.label}
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className="ml-1.5 text-[10px]">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Búsqueda */}
@@ -94,13 +93,13 @@ const ListaReservas = () => {
           placeholder="Buscar..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 focus:border-black focus:outline-none bg-white text-black placeholder-gray-400 text-sm transition-colors"
+          className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white text-black placeholder-gray-400 text-sm transition-all"
         />
       </div>
 
       {/* Lista */}
       {reservasFiltradas.length === 0 ? (
-        <div className="text-center py-16 border border-gray-200">
+        <div className="text-center py-16 bg-gray-50 rounded-2xl">
           <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
@@ -110,7 +109,7 @@ const ListaReservas = () => {
           {reservasDelUsuario.length === 0 && (
             <a
               href="/reservar"
-              className="inline-block px-6 py-2.5 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+              className="inline-block px-6 py-2.5 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
             >
               Haz tu primera reserva
             </a>
@@ -129,12 +128,12 @@ const ListaReservas = () => {
             return (
               <div
                 key={reserva.id}
-                className={`border p-4 md:p-5 transition-all ${
+                className={`rounded-xl border p-4 md:p-5 transition-all ${
                   esPasada
-                    ? 'border-gray-200 opacity-50'
+                    ? 'border-gray-100 opacity-50'
                     : esPendiente
-                    ? 'border-yellow-300 bg-yellow-50/30'
-                    : 'border-gray-200 hover:border-gray-400'
+                    ? 'border-yellow-200 bg-yellow-50/30 shadow-sm'
+                    : 'border-gray-100 bg-white shadow-sm hover:shadow-md'
                 }`}
               >
                 <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
@@ -151,7 +150,7 @@ const ListaReservas = () => {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      <span className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest ${
+                      <span className={`px-2.5 py-0.5 text-[10px] font-semibold rounded-full ${
                         esPendiente
                           ? 'bg-yellow-100 text-yellow-700'
                           : reserva.estado === 'confirmada'
@@ -191,7 +190,7 @@ const ListaReservas = () => {
                   {esPendiente && !esPasada && (
                     <button
                       onClick={() => setReservaAEliminar(reserva)}
-                      className="flex-shrink-0 px-4 py-2 border border-gray-300 text-gray-500 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                      className="flex-shrink-0 px-4 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
                     >
                       Cancelar
                     </button>
@@ -205,8 +204,8 @@ const ListaReservas = () => {
 
       {/* Modal cancelar */}
       {reservaAEliminar && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white max-w-sm w-full p-8">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white max-w-sm w-full p-8 rounded-2xl shadow-2xl">
             <h2 className="text-2xl font-bold text-black mb-4 tracking-tight uppercase">
               Cancelar reserva
             </h2>
@@ -221,13 +220,13 @@ const ListaReservas = () => {
             <div className="flex gap-3">
               <button
                 onClick={() => setReservaAEliminar(null)}
-                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 text-xs font-medium tracking-widest hover:bg-gray-50 transition-colors uppercase"
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
               >
                 Volver
               </button>
               <button
                 onClick={handleEliminar}
-                className="flex-1 px-6 py-3 bg-black text-white text-xs font-medium tracking-widest hover:bg-gray-800 transition-colors uppercase"
+                className="flex-1 px-6 py-3 bg-red-500 text-white text-xs font-medium rounded-lg hover:bg-red-600 active:scale-[0.98] transition-all"
               >
                 Cancelar reserva
               </button>
