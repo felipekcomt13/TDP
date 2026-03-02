@@ -124,6 +124,33 @@ export const ReservasProvider = ({ children }) => {
     };
   };
 
+  const agregarReservasMasivas = async (reservas) => {
+    const registros = reservas.map(r => ({
+      user_id: user?.id || null,
+      nombre: r.nombre,
+      telefono: r.telefono || null,
+      email: r.email || null,
+      dni: r.dni,
+      fecha: r.fecha,
+      hora: r.hora,
+      hora_fin: r.horaFin || null,
+      dia_semana: r.diaSemana,
+      estado: 'confirmada',
+      notas: r.notas || null,
+      cancha: r.cancha || 'principal',
+      deporte: r.deporte || 'basket'
+    }));
+
+    const { error } = await supabase
+      .from('reservas')
+      .insert(registros);
+
+    if (error) throw error;
+
+    await cargarReservas();
+    return registros.length;
+  };
+
   const eliminarReserva = async (id) => {
     const { error } = await supabase
       .rpc('cancelar_reserva', { reserva_id: id });
@@ -322,6 +349,7 @@ export const ReservasProvider = ({ children }) => {
     setConfiguracion,
     cargarReservas,
     agregarReserva,
+    agregarReservasMasivas,
     eliminarReserva,
     editarReserva,
     confirmarReserva,
