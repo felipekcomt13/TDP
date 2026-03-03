@@ -31,6 +31,7 @@ const KioscoAdmin = () => {
   const [tabActivo, setTabActivo] = useState('inventario');
   const [busqueda, setBusqueda] = useState('');
   const [mensaje, setMensaje] = useState(null);
+  const [productoVendido, setProductoVendido] = useState(null);
   const [modalTipo, setModalTipo] = useState(null);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [formData, setFormData] = useState(formInicial);
@@ -236,6 +237,8 @@ const KioscoAdmin = () => {
   const handleVender = async (producto) => {
     try {
       const resultado = await registrarVenta(producto.id);
+      setProductoVendido(producto.id);
+      setTimeout(() => setProductoVendido(null), 1500);
       mostrarMensaje(`Venta registrada: ${resultado.producto} — Stock restante: ${resultado.stock_restante}`, 'success');
     } catch (error) {
       mostrarMensaje('Error: ' + error.message, 'error');
@@ -509,8 +512,22 @@ const KioscoAdmin = () => {
             {productosConStock.map((producto) => (
               <div
                 key={producto.id}
-                className="bg-white rounded-xl shadow-sm hover:shadow-md border border-gray-100 p-5 transition-all"
+                className={`relative bg-white rounded-xl shadow-sm hover:shadow-md border p-5 transition-all duration-300 ${
+                  productoVendido === producto.id
+                    ? 'border-emerald-400 scale-[1.02] shadow-emerald-100 shadow-md'
+                    : 'border-gray-100'
+                }`}
               >
+                {/* Overlay vendido */}
+                {productoVendido === producto.id && (
+                  <div className="absolute inset-0 bg-emerald-500/90 rounded-xl flex flex-col items-center justify-center z-10 animate-slideUp">
+                    <svg className="w-10 h-10 text-white mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-white font-bold text-sm uppercase tracking-wide">Vendido</span>
+                  </div>
+                )}
+
                 {/* Imagen */}
                 <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden mb-4">
                   {producto.imagen_url ? (
