@@ -16,10 +16,6 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [redirigiendo, setRedirigiendo] = useState(false);
-  const [countdown, setCountdown] = useState(5);
-  const [urlWhatsApp, setUrlWhatsApp] = useState('');
-  const [mensajeWhatsApp, setMensajeWhatsApp] = useState('');
   const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
@@ -59,34 +55,6 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
     }
   }, [user, profile]);
 
-  // Efecto para el countdown de redirección
-  useEffect(() => {
-    if (redirigiendo && countdown > 0) {
-      const timer = setTimeout(() => {
-        setCountdown(countdown - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    } else if (redirigiendo && countdown === 0) {
-      // Ejecutar redirección
-      window.open(urlWhatsApp, '_blank');
-
-      // Limpiar formulario
-      setFormData({
-        nombre: '',
-        telefono: '',
-        email: '',
-        dni: '',
-        notas: ''
-      });
-
-      // Resetear estados
-      setRedirigiendo(false);
-      setCountdown(5);
-
-      // Cerrar modal
-      onCerrar();
-    }
-  }, [redirigiendo, countdown, urlWhatsApp, onCerrar]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -176,9 +144,6 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
         mensaje += `• Notas: ${formData.notas}\n`;
       }
 
-      // Guardar mensaje sin codificar para copiar
-      setMensajeWhatsApp(mensaje);
-
       // Codificar mensaje para URL
       const mensajeCodificado = encodeURIComponent(mensaje);
       const numeroWhatsApp = '51974341064'; // Número de WhatsApp del complejo (PROD)
@@ -206,10 +171,11 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
         onReservaCreada(reservaCreada);
       }
 
-      // Guardar URL y activar countdown
-      setUrlWhatsApp(url);
-      setRedirigiendo(true);
+      // Abrir WhatsApp al instante (acción de usuario, no bloqueado por el navegador)
+      window.open(url, '_blank');
+
       setLoading(false);
+      onCerrar();
     } catch (err) {
       setError('Error al crear la reserva. Por favor intenta de nuevo.');
       setLoading(false);
@@ -226,64 +192,6 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
   const nombreCancha = obtenerNombreCancha(cancha);
   const tipoHorario = obtenerTipoHorario(cancha, usuarioEsSocio);
 
-  // Si está redirigiendo, mostrar mensaje de countdown
-  if (redirigiendo) {
-    return (
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-        <div className="bg-white max-w-md w-full p-12 text-center rounded-2xl shadow-2xl animate-scaleIn">
-          <div className="mb-8">
-            <div className="w-24 h-24 bg-black rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-black mb-3 tracking-tight">RESERVA CREADA</h2>
-            <p className="text-gray-600 text-sm mb-6">
-              Redirigiendo a WhatsApp
-            </p>
-            <div className="bg-gray-50 rounded-xl border border-gray-200 p-6 mb-6">
-              <p className="text-black font-bold text-5xl mb-2">
-                {countdown}
-              </p>
-              <p className="text-xs text-gray-500">
-                segundo{countdown !== 1 ? 's' : ''}
-              </p>
-            </div>
-            <div className="w-full bg-gray-200 h-1 overflow-hidden">
-              <div
-                className="bg-black h-1 transition-all duration-1000 ease-linear"
-                style={{ width: `${((5 - countdown) / 5) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(mensajeWhatsApp).then(() => {
-                  setCopiado(true);
-                  setTimeout(() => setCopiado(false), 2000);
-                });
-              }}
-              className="px-6 py-3 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
-            >
-              {copiado ? 'Copiado' : 'Copiar mensaje'}
-            </button>
-            <button
-              onClick={() => {
-                setRedirigiendo(false);
-                setCountdown(5);
-                setCopiado(false);
-                onCerrar();
-              }}
-              className="px-6 py-3 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">

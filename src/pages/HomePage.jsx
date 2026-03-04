@@ -25,7 +25,7 @@ const HomePage = () => {
   };
 
   // Fecha de apertura de reservas
-  const FECHA_APERTURA = new Date(2026, 2, 4); // 4 de marzo de 2026 (miércoles de apertura)
+  const FECHA_APERTURA = new Date(2026, 2, 9); // 9 de marzo de 2026
   const reservasBloqueadas = new Date() < FECHA_APERTURA;
 
   return (
@@ -52,7 +52,7 @@ const HomePage = () => {
           {reservasBloqueadas ? (
             <div className="mt-4 bg-gray-900 text-white px-6 py-4 text-center rounded-xl">
               <p className="text-sm font-bold">
-                Las reservas abren el 4 de marzo
+                Apertura oficial el 9 de marzo
               </p>
             </div>
           ) : (
