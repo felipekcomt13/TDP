@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   format, addMonths, startOfMonth, endOfMonth,
   startOfWeek, addDays, isSameDay, isSameMonth
@@ -19,6 +19,7 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
   const [horaInicio, setHoraInicio] = useState(null);
   const [horaFin, setHoraFin] = useState(null);
   const [mesCalendario, setMesCalendario] = useState(new Date());
+  const slotsRef = useRef(null);
   const [formData, setFormData] = useState({ nombre: '', dni: '', telefono: '', email: '', notas: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +43,15 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
       }));
     }
   }, [user, profile]);
+
+  // Scroll automático a los horarios al seleccionar fecha (útil en móvil)
+  useEffect(() => {
+    if (fecha && slotsRef.current) {
+      setTimeout(() => {
+        slotsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 100);
+    }
+  }, [fecha]);
 
   const calcularHoraFinSlot = (hora) => {
     const [h, m] = hora.split(':').map(Number);
@@ -380,7 +390,7 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
             {renderCalendario()}
 
             {fecha && (
-              <div className="mt-4">
+              <div className="mt-4" ref={slotsRef}>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-semibold text-black">
                     {new Date(fecha + 'T00:00:00').toLocaleDateString('es-ES', {
