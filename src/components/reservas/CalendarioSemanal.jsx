@@ -5,7 +5,7 @@ import { useReservas } from '../../context/ReservasContext';
 import { useAuth } from '../../context/AuthContext';
 import { obtenerNombreCancha } from '../../utils/preciosCalculator';
 
-const CalendarioSemanal = ({ onSeleccionarHorario }) => {
+const CalendarioSemanal = ({ onSeleccionarHorario = null }) => {
   const [fechaActual, setFechaActual] = useState(new Date());
   const [rangoSeleccion, setRangoSeleccion] = useState(null); // { fecha, horaInicio, dia, diaFecha, cancha }
   const [rangoHover, setRangoHover] = useState(null); // { horaFin, horas, esValido }
@@ -459,6 +459,9 @@ const CalendarioSemanal = ({ onSeleccionarHorario }) => {
   };
 
   const manejarClickCelda = (fecha, hora, disponible, cancha) => {
+    // Si no hay handler de selección, el calendario es solo vista
+    if (!onSeleccionarHorario) return;
+
     // Prevenir click si acabamos de hacer drag
     if (dragDistance > 5) {
       setDragDistance(0);

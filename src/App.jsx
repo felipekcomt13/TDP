@@ -4,6 +4,7 @@ import { ReservasProvider } from './context/ReservasContext';
 import { SociosComercialesProvider } from './context/SociosComercialesContext';
 import { HeroConfigProvider } from './context/HeroConfigContext';
 import { KioscoProvider } from './context/KioscoContext';
+import { CanchasProvider } from './context/CanchasContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
 import LandingPage from './pages/LandingPage';
@@ -16,6 +17,7 @@ import GestionMembresias from './pages/admin/GestionMembresias';
 import GestionSociosComerciales from './pages/admin/GestionSociosComerciales';
 import ConfiguracionSitio from './pages/admin/ConfiguracionSitio';
 import KioscoAdmin from './pages/admin/KioscoAdmin';
+import GestionCanchas from './pages/admin/GestionCanchas';
 import MiMembresiaPage from './pages/MiMembresiaPage';
 import CampoPage from './pages/CampoPage';
 import SociosComercialesPage from './pages/SociosComercialesPage';
@@ -25,6 +27,7 @@ function App() {
     <Router>
       <AuthProvider>
         <ReservasProvider>
+          <CanchasProvider>
           <SociosComercialesProvider>
           <HeroConfigProvider>
           <KioscoProvider>
@@ -101,11 +104,20 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/canchas"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AppLayout><GestionCanchas /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
           </KioscoProvider>
           </HeroConfigProvider>
 
           </SociosComercialesProvider>
+          </CanchasProvider>
         </ReservasProvider>
       </AuthProvider>
     </Router>
