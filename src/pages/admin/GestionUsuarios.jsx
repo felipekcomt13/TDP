@@ -16,7 +16,8 @@ const GestionUsuarios = () => {
     duracion: '30',
     precio: '',
     metodoPago: 'efectivo',
-    notas: ''
+    notas: '',
+    fechaInicio: new Date().toISOString().split('T')[0]
   });
 
   useEffect(() => {
@@ -72,7 +73,8 @@ const GestionUsuarios = () => {
         p_duracion_dias: parseInt(formSocio.duracion),
         p_precio: formSocio.precio ? parseFloat(formSocio.precio) : null,
         p_metodo_pago: formSocio.metodoPago || null,
-        p_notas: formSocio.notas || null
+        p_notas: formSocio.notas || null,
+        p_fecha_inicio: formSocio.fechaInicio || null
       });
 
       if (error) throw error;
@@ -116,7 +118,8 @@ const GestionUsuarios = () => {
       duracion: '30',
       precio: '',
       metodoPago: 'efectivo',
-      notas: ''
+      notas: '',
+      fechaInicio: new Date().toISOString().split('T')[0]
     });
   };
 
@@ -344,6 +347,24 @@ const GestionUsuarios = () => {
                   <option value="180">180 días (6 meses)</option>
                   <option value="365">365 días (1 año)</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">
+                  Fecha de Inicio
+                </label>
+                <input
+                  type="date"
+                  value={formSocio.fechaInicio}
+                  onChange={(e) => setFormSocio({ ...formSocio, fechaInicio: e.target.value })}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm transition-all"
+                />
+                {formSocio.fechaInicio !== new Date().toISOString().split('T')[0] && (
+                  <p className="text-xs text-yellow-600 mt-1">
+                    Fecha diferente a hoy - la membresía se calculará desde esta fecha
+                  </p>
+                )}
               </div>
 
               <div>

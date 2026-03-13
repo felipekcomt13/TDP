@@ -12,7 +12,7 @@ export const useHeroConfig = () => {
 };
 
 export const HeroConfigProvider = ({ children }) => {
-  const [heroConfig, setHeroConfig] = useState({ video_url: null, video_activo: false });
+  const [heroConfig, setHeroConfig] = useState({ video_url: null, video_activo: false, subtitulo_texto: null, subtitulo_activo: true });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,6 +59,16 @@ export const HeroConfigProvider = ({ children }) => {
     await cargarHeroConfig(false);
   };
 
+  const actualizarSubtitulo = async (subtitulo_texto, subtitulo_activo) => {
+    const { error } = await supabase.rpc('actualizar_hero_subtitulo', {
+      p_subtitulo_texto: subtitulo_texto,
+      p_subtitulo_activo: subtitulo_activo
+    });
+
+    if (error) throw error;
+    await cargarHeroConfig(false);
+  };
+
   const subirVideo = async (archivo) => {
     const extension = archivo.name.split('.').pop();
     const nombreArchivo = `hero-videos/${Date.now()}.${extension}`;
@@ -90,6 +100,7 @@ export const HeroConfigProvider = ({ children }) => {
     loading,
     cargarHeroConfig,
     actualizarHeroConfig,
+    actualizarSubtitulo,
     subirVideo,
     eliminarVideo
   };

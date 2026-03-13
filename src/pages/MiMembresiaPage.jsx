@@ -1,10 +1,13 @@
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useSociosComerciales } from '../context/SociosComercialesContext';
 import BadgeSocio from '../components/shared/BadgeSocio';
 
 const MiMembresiaPage = () => {
   const { profile, membresia, esSocio, diasRestantes } = useAuth();
   const navigate = useNavigate();
+  const { sociosComerciales } = useSociosComerciales();
+  const sociosActivos = sociosComerciales.filter(s => s.activo);
 
   const formatearFecha = (fecha) => {
     if (!fecha) return '-';
@@ -246,6 +249,53 @@ const MiMembresiaPage = () => {
               </div>
             </div>
           </>
+        )}
+
+        {/* Beneficios con Socios Comerciales */}
+        {sociosActivos.length > 0 && (
+          <div className="mt-12 pt-12 border-t border-gray-200">
+            <h2 className="text-2xl font-bold text-black tracking-tight mb-2">
+              BENEFICIOS CON SOCIOS
+            </h2>
+            <p className="text-gray-500 text-sm mb-6">
+              Descuentos exclusivos en comercios aliados
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {sociosActivos.map((socio) => (
+                <div
+                  key={socio.id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {socio.logo_url ? (
+                        <img
+                          src={socio.logo_url}
+                          alt={socio.nombre}
+                          className="w-full h-full object-contain p-1"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className={`text-xl font-bold text-gray-300 ${socio.logo_url ? 'hidden' : ''}`}
+                        style={{ display: socio.logo_url ? 'none' : undefined }}
+                      >
+                        {socio.nombre.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-black truncate">{socio.nombre}</h3>
+                      <p className="text-xs text-gray-400 capitalize">{socio.categoria}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium text-black">{socio.beneficio}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Contacto */}

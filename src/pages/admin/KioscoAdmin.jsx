@@ -41,6 +41,7 @@ const KioscoAdmin = () => {
   const [previewImagen, setPreviewImagen] = useState(null);
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [ventaPendiente, setVentaPendiente] = useState(null);
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -234,12 +235,19 @@ const KioscoAdmin = () => {
     }
   };
 
-  const handleVender = async (producto) => {
+  const handleVender = (producto) => {
+    setVentaPendiente(producto);
+  };
+
+  const confirmarVenta = async (tipoPago) => {
+    if (!ventaPendiente) return;
+    const producto = ventaPendiente;
+    setVentaPendiente(null);
     try {
-      const resultado = await registrarVenta(producto.id);
+      const resultado = await registrarVenta(producto.id, 1, tipoPago);
       setProductoVendido(producto.id);
       setTimeout(() => setProductoVendido(null), 1500);
-      mostrarMensaje(`Venta registrada: ${resultado.producto} — Stock restante: ${resultado.stock_restante}`, 'success');
+      mostrarMensaje(`Venta registrada: ${resultado.producto} — ${tipoPago === 'plin' ? 'Plin QR' : 'Efectivo'} — Stock: ${resultado.stock_restante}`, 'success');
     } catch (error) {
       mostrarMensaje('Error: ' + error.message, 'error');
     }
@@ -680,6 +688,13 @@ const KioscoAdmin = () => {
                         x{venta.cantidad}
                       </span>
                     )}
+                    <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${
+                      venta.tipo_pago === 'plin'
+                        ? 'bg-purple-50 text-purple-600 border border-purple-100'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {venta.tipo_pago === 'plin' ? 'Plin' : 'Efectivo'}
+                    </span>
                   </div>
                 </div>
                 <div className="ml-4">
@@ -862,6 +877,46 @@ const KioscoAdmin = () => {
                 className="flex-1 px-6 py-3 bg-red-500 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-red-600 active:scale-[0.98] transition-all disabled:opacity-50"
               >
                 {guardando ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Metodo de Pago */}
+      {ventaPendiente && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl animate-scaleIn">
+            <div className="p-8 pb-4">
+              <h2 className="text-lg font-bold text-gray-900 text-center mb-1">Metodo de pago</h2>
+              <p className="text-sm text-gray-500 text-center">
+                {ventaPendiente.nombre} — S/ {parseFloat(ventaPendiente.precio).toFixed(2)}
+              </p>
+            </div>
+            <div className="px-8 pb-8 flex flex-col gap-3">
+              <button
+                onClick={() => confirmarVenta('efectivo')}
+                className="w-full py-4 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-wide"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Efectivo
+              </button>
+              <button
+                onClick={() => confirmarVenta('plin')}
+                className="w-full py-4 bg-[#00D4AA] text-white text-sm font-bold rounded-xl hover:bg-[#00c49e] active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-wide"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Plin QR
+              </button>
+              <button
+                onClick={() => setVentaPendiente(null)}
+                className="w-full py-3 text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Cancelar
               </button>
             </div>
           </div>

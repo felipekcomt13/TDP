@@ -14,10 +14,10 @@ const getGoogleDriveEmbedUrl = (url) => {
 
 const esGoogleDrive = (url) => url && url.includes('drive.google.com');
 
-const ConfiguracionSitio = () => {
+const ConfiguracionSitio = ({ embedded = false }) => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { heroConfig, loading, actualizarHeroConfig, subirVideo, eliminarVideo } = useHeroConfig();
+  const { heroConfig, loading, actualizarHeroConfig, actualizarSubtitulo, subirVideo, eliminarVideo } = useHeroConfig();
 
   const [mensaje, setMensaje] = useState(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -25,6 +25,16 @@ const ConfiguracionSitio = () => {
   const [inputUrl, setInputUrl] = useState('');
   const [metodo, setMetodo] = useState('url'); // 'url' | 'archivo'
   const fileInputRef = useRef(null);
+  const [subtituloTexto, setSubtituloTexto] = useState('');
+  const [subtituloIniciado, setSubtituloIniciado] = useState(false);
+
+  // Sincronizar estado local del subtitulo con heroConfig
+  useEffect(() => {
+    if (!subtituloIniciado && heroConfig.subtitulo_texto != null) {
+      setSubtituloTexto(heroConfig.subtitulo_texto || '');
+      setSubtituloIniciado(true);
+    }
+  }, [heroConfig.subtitulo_texto, subtituloIniciado]);
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -135,9 +145,9 @@ const ConfiguracionSitio = () => {
     );
   }
 
-  return (
-    <div className="bg-white min-h-full">
-      <div className="px-6 lg:px-8 py-12">
+  const contenido = (
+    <>
+      {!embedded && (
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-black tracking-tight mb-2">
             CONFIGURACION DEL SITIO
@@ -146,8 +156,9 @@ const ConfiguracionSitio = () => {
             Gestiona la apariencia y contenido del sitio web
           </p>
         </div>
+      )}
 
-        {/* Mensaje de feedback */}
+      {/* Mensaje de feedback */}
         {mensaje && (
           <div
             className={`mb-6 px-6 py-4 rounded-xl border ${
@@ -353,6 +364,96 @@ const ConfiguracionSitio = () => {
             </div>
           )}
 
+          {/* Subtítulo del Hero */}
+          <div className="mt-12 pt-12 border-t border-gray-200">
+            <h2 className="text-2xl font-bold text-black tracking-tight mb-1">
+              SUBTITULO DEL HERO
+            </h2>
+            <p className="text-gray-500 text-sm mb-8">
+              Texto que aparece debajo del titulo en la landing
+            </p>
+
+            {/* Toggle mostrar/ocultar */}
+            <div className="flex items-center justify-between py-4 border-b border-gray-200 mb-6">
+              <div>
+                <p className="text-sm font-semibold text-black">Mostrar subtitulo</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {heroConfig.subtitulo_activo
+                    ? 'El subtitulo se muestra en la landing'
+                    : 'El subtitulo esta oculto'}
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    setGuardando(true);
+                    await actualizarSubtitulo(heroConfig.subtitulo_texto, !heroConfig.subtitulo_activo);
+                    mostrarMensaje(
+                      !heroConfig.subtitulo_activo ? 'Subtitulo activado' : 'Subtitulo ocultado',
+                      'success'
+                    );
+                  } catch (error) {
+                    mostrarMensaje('Error: ' + error.message, 'error');
+                  } finally {
+                    setGuardando(false);
+                  }
+                }}
+                disabled={guardando}
+                className={`relative w-12 h-7 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  heroConfig.subtitulo_activo ? 'bg-black' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform shadow ${
+                    heroConfig.subtitulo_activo ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Editor de texto */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-600 mb-2">
+                Texto del subtitulo
+              </label>
+              <textarea
+                value={subtituloTexto}
+                onChange={(e) => setSubtituloTexto(e.target.value)}
+                placeholder="Ej: Torneo 3x3 — Inscripciones abiertas"
+                rows={3}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black text-sm placeholder-gray-400 transition-all resize-none"
+              />
+            </div>
+
+            <button
+              onClick={async () => {
+                try {
+                  setGuardando(true);
+                  await actualizarSubtitulo(subtituloTexto.trim() || null, heroConfig.subtitulo_activo);
+                  mostrarMensaje('Subtitulo actualizado', 'success');
+                } catch (error) {
+                  mostrarMensaje('Error: ' + error.message, 'error');
+                } finally {
+                  setGuardando(false);
+                }
+              }}
+              disabled={guardando || subtituloTexto === (heroConfig.subtitulo_texto || '')}
+              className="px-5 py-2.5 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {guardando ? 'Guardando...' : 'Guardar subtitulo'}
+            </button>
+
+            {/* Preview */}
+            {heroConfig.subtitulo_activo && subtituloTexto && (
+              <div className="mt-6 bg-gray-900 rounded-xl p-6 text-center">
+                <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Preview</p>
+                <p className="text-white text-base md:text-lg leading-relaxed">
+                  {subtituloTexto}
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Nota informativa */}
           <div className="mt-10 bg-gray-50 rounded-xl border border-gray-200 p-6">
             <p className="text-sm font-medium text-gray-600 mb-3">
@@ -378,6 +479,15 @@ const ConfiguracionSitio = () => {
             </ul>
           </div>
         </div>
+    </>
+  );
+
+  if (embedded) return contenido;
+
+  return (
+    <div className="bg-white min-h-full">
+      <div className="px-6 lg:px-8 py-12">
+        {contenido}
       </div>
     </div>
   );

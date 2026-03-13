@@ -160,10 +160,11 @@ export const KioscoProvider = ({ children }) => {
 
   // --- VENTAS ---
 
-  const registrarVenta = async (productoId, cantidad = 1) => {
+  const registrarVenta = async (productoId, cantidad = 1, tipoPago = 'efectivo') => {
     const { data, error } = await supabase.rpc('registrar_venta_kiosco', {
       p_producto_id: productoId,
-      p_cantidad: cantidad
+      p_cantidad: cantidad,
+      p_tipo_pago: tipoPago
     });
 
     if (error) throw error;

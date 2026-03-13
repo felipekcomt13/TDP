@@ -14,7 +14,8 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const { signIn, signUp } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const { signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -105,15 +106,44 @@ const LoginPage = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!formData.email) {
+      setError('Ingresa tu email para recuperar tu contraseña');
+      return;
+    }
+    setError('');
+    setSuccessMessage('');
+    setLoading(true);
+
+    try {
+      const { error } = await resetPassword(formData.email);
+      if (error) {
+        if (error.status === 429) {
+          setError('Demasiados intentos. Espera unos minutos antes de intentar nuevamente.');
+        } else {
+          setError('No se pudo enviar el email de recuperación. Verifica tu email e intenta de nuevo.');
+        }
+      } else {
+        setSuccessMessage('Se envió un link de recuperación a tu email. Revisa tu bandeja de entrada.');
+      }
+    } catch {
+      setError('Ocurrió un error inesperado. Intenta de nuevo más tarde.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white flex items-center justify-center py-12 px-6">
       <div className="max-w-md w-full">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-black mb-3 tracking-tight uppercase">
-            {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+            {showForgotPassword ? 'RECUPERAR CONTRASEÑA' : (isLogin ? 'Iniciar Sesión' : 'Crear Cuenta')}
           </h1>
           <p className="text-gray-600 text-sm tracking-wide">
-            {isLogin ? 'Accede a tu cuenta para gestionar tus reservas' : 'Regístrate para guardar y gestionar tus reservas'}
+            {showForgotPassword
+              ? 'Ingresa tu email para recibir un link de recuperación'
+              : (isLogin ? 'Accede a tu cuenta para gestionar tus reservas' : 'Regístrate para guardar y gestionar tus reservas')}
           </p>
         </div>
 
@@ -130,132 +160,193 @@ const LoginPage = () => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {!isLogin && (
+          {showForgotPassword ? (
+            <div className="space-y-6">
               <div>
-                <label htmlFor="nombre" className="block text-sm font-medium text-gray-600 mb-2">
-                  Nombre completo *
+                <label htmlFor="resetEmail" className="block text-sm font-medium text-gray-600 mb-2">
+                  Email de tu cuenta
                 </label>
                 <input
-                  type="text"
-                  id="nombre"
-                  name="nombre"
-                  value={formData.nombre}
+                  type="email"
+                  id="resetEmail"
+                  name="email"
+                  value={formData.email}
                   onChange={handleChange}
                   className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
-                  placeholder="Juan Pérez"
-                  required={!isLogin}
+                  placeholder="correo@ejemplo.com"
+                  required
                 />
               </div>
-            )}
 
-            {!isLogin && (
-              <div>
-                <label htmlFor="celular" className="block text-sm font-medium text-gray-600 mb-2">
-                  Número de celular *
-                </label>
-                <input
-                  type="tel"
-                  id="celular"
-                  name="celular"
-                  value={formData.celular}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
-                  placeholder="987654321"
-                  maxLength="9"
-                  required={!isLogin}
-                />
-                <p className="text-xs text-gray-500 mt-1">9 dígitos, comenzando con 9</p>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="w-full px-6 py-4 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                {loading ? 'ENVIANDO...' : 'ENVIAR LINK DE RECUPERACIÓN'}
+              </button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(false);
+                    setError('');
+                    setSuccessMessage('');
+                  }}
+                  className="text-sm text-gray-600 hover:text-black transition-colors"
+                >
+                  Volver al inicio de sesión
+                </button>
               </div>
-            )}
-
-            {!isLogin && (
-              <div>
-                <label htmlFor="dni" className="block text-sm font-medium text-gray-600 mb-2">
-                  DNI *
-                </label>
-                <input
-                  type="text"
-                  id="dni"
-                  name="dni"
-                  value={formData.dni}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
-                  placeholder="12345678"
-                  maxLength="8"
-                  required={!isLogin}
-                />
-                <p className="text-xs text-gray-500 mt-1">8 dígitos</p>
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-2">
-                Email *
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
-                placeholder="correo@ejemplo.com"
-                required
-              />
             </div>
+          ) : (
+            <>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {!isLogin && (
+                  <div>
+                    <label htmlFor="nombre" className="block text-sm font-medium text-gray-600 mb-2">
+                      Nombre completo *
+                    </label>
+                    <input
+                      type="text"
+                      id="nombre"
+                      name="nombre"
+                      value={formData.nombre}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
+                      placeholder="Juan Pérez"
+                      required={!isLogin}
+                    />
+                  </div>
+                )}
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-2">
-                Contraseña *
-              </label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
-              {!isLogin && (
-                <p className="text-xs text-gray-500 mt-2">Mínimo 6 caracteres</p>
-              )}
-            </div>
+                {!isLogin && (
+                  <div>
+                    <label htmlFor="celular" className="block text-sm font-medium text-gray-600 mb-2">
+                      Número de celular *
+                    </label>
+                    <input
+                      type="tel"
+                      id="celular"
+                      name="celular"
+                      value={formData.celular}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
+                      placeholder="987654321"
+                      maxLength="9"
+                      required={!isLogin}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">9 dígitos, comenzando con 9</p>
+                  </div>
+                )}
 
-            <button
-              type="submit"
-              className="w-full px-6 py-4 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
-              disabled={loading}
-            >
-              {loading ? 'Procesando...' : (isLogin ? 'Iniciar Sesión' : 'Crear Cuenta')}
-            </button>
-          </form>
+                {!isLogin && (
+                  <div>
+                    <label htmlFor="dni" className="block text-sm font-medium text-gray-600 mb-2">
+                      DNI *
+                    </label>
+                    <input
+                      type="text"
+                      id="dni"
+                      name="dni"
+                      value={formData.dni}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
+                      placeholder="12345678"
+                      maxLength="8"
+                      required={!isLogin}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">8 dígitos</p>
+                  </div>
+                )}
 
-          <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-            <button
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setError('');
-                setSuccessMessage('');
-                setFormData({ email: '', password: '', nombre: '', celular: '', dni: '' });
-              }}
-              className="text-sm text-gray-600 hover:text-black transition-colors"
-            >
-              {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
-            </button>
-          </div>
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-600 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
+                    placeholder="correo@ejemplo.com"
+                    required
+                  />
+                </div>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => navigate('/')}
-              className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              Volver al inicio
-            </button>
-          </div>
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-600 mb-2">
+                    Contraseña *
+                  </label>
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white text-black placeholder-gray-400 transition-all"
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                  />
+                  {!isLogin && (
+                    <p className="text-xs text-gray-500 mt-2">Mínimo 6 caracteres</p>
+                  )}
+                </div>
+
+                {isLogin && (
+                  <div className="text-right -mt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(true);
+                        setError('');
+                        setSuccessMessage('');
+                      }}
+                      className="text-xs text-gray-500 hover:text-black transition-colors"
+                    >
+                      ¿Olvidaste tu contraseña?
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full px-6 py-4 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={loading}
+                >
+                  {loading ? 'Procesando...' : (isLogin ? 'Iniciar Sesión' : 'Crear Cuenta')}
+                </button>
+              </form>
+
+              <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+                <button
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setError('');
+                    setSuccessMessage('');
+                    setFormData({ email: '', password: '', nombre: '', celular: '', dni: '' });
+                  }}
+                  className="text-sm text-gray-600 hover:text-black transition-colors"
+                >
+                  {isLogin ? '¿No tienes cuenta? Regístrate' : '¿Ya tienes cuenta? Inicia sesión'}
+                </button>
+              </div>
+
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => navigate('/')}
+                  className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  Volver al inicio
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mt-8 bg-gray-50 rounded-xl border border-gray-200 p-6">

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useHeroConfig } from '../context/HeroConfigContext';
+import DisponibilidadRapida from '../components/reservas/DisponibilidadRapida';
 
 const getGoogleDriveEmbedUrl = (url) => {
   if (!url) return null;
@@ -14,10 +15,44 @@ const getGoogleDriveEmbedUrl = (url) => {
 
 const esGoogleDrive = (url) => url && url.includes('drive.google.com');
 
+const TABS_LANDING = [
+  {
+    id: 'disponibilidad',
+    label: 'Disponibilidad',
+    labelCorto: 'Horarios',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  },
+  {
+    id: 'como-reservar',
+    label: 'Como Reservar',
+    labelCorto: 'Reservar',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+      </svg>
+    )
+  },
+  {
+    id: 'contacto',
+    label: 'Contacto',
+    labelCorto: 'Contacto',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+      </svg>
+    )
+  }
+];
+
 const LandingPage = () => {
   const { heroConfig } = useHeroConfig();
   const videoRef = useRef(null);
   const [muteado, setMuteado] = useState(true);
+  const [tabActivo, setTabActivo] = useState('disponibilidad');
 
   const videoActivo = heroConfig.video_activo && heroConfig.video_url;
   const esVideoNativo = videoActivo && !esGoogleDrive(heroConfig.video_url);
@@ -138,9 +173,11 @@ const LandingPage = () => {
             <h1 className={`text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4 sm:mb-6 font-display animate-stagger-2 ${videoActivo ? 'drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]' : ''}`}>
               COMPLEJO DEPORTIVO<br />TRIPLE DOBLE
             </h1>
-            <p className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto leading-relaxed animate-stagger-3 ${videoActivo ? 'text-gray-100 drop-shadow-lg' : 'text-gray-300'}`}>
-              Torneo 3x3 — 21 de febrero. Categoría Sub 20 varones y mujeres. ¡Inscríbete ya!
-            </p>
+            {heroConfig.subtitulo_activo && heroConfig.subtitulo_texto && (
+              <p className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto leading-relaxed animate-stagger-3 ${videoActivo ? 'text-gray-100 drop-shadow-lg' : 'text-gray-300'}`}>
+                {heroConfig.subtitulo_texto}
+              </p>
+            )}
             {videoActivo && (
               <a
                 href="https://wa.me/51974341064?text=Quiero%20participar%20en%20el%203%20x%203"
@@ -155,65 +192,73 @@ const LandingPage = () => {
         </div>
       </div>
 
-      {/* Cómo Reservar */}
-      <div className="px-6 lg:px-8 py-16 md:py-20">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-black mb-4 tracking-tight">
-              CÓMO RESERVAR
-            </h2>
-            <p className="text-gray-600 text-sm uppercase tracking-wide">
-              Sigue estos sencillos pasos
-            </p>
-          </div>
-
-          {/* Pasos */}
-          <div className="space-y-8">
-            {pasos.map((paso) => (
-              <div
-                key={paso.numero}
-                className="flex gap-6 items-start p-6 bg-gray-50 rounded-xl border border-gray-200 hover:shadow-md transition-all"
+      {/* Tabs de contenido */}
+      <div className="sticky top-16 md:top-20 z-30 bg-gray-900">
+        <div className="px-3 sm:px-6 lg:px-8 max-w-5xl mx-auto py-2.5">
+          <div className="flex gap-2">
+            {TABS_LANDING.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setTabActivo(tab.id)}
+                className={`flex-1 flex items-center justify-center gap-2 px-3 sm:px-5 py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                  tabActivo === tab.id
+                    ? 'bg-white text-black shadow-sm'
+                    : 'text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
               >
-                <div className="flex-shrink-0">
-                  <div className="w-16 h-16 bg-black text-white rounded-xl flex items-center justify-center">
-                    <span className="text-2xl font-bold">{paso.numero}</span>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-black mb-2 tracking-tight uppercase">
-                    {paso.titulo}
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    {paso.descripcion}
-                  </p>
-                </div>
-              </div>
+                {tab.icon}
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.labelCorto}</span>
+              </button>
             ))}
-          </div>
-
-          {/* CTA Button */}
-          <div className="text-center mt-16">
-            <Link
-              to="/reservar"
-              className="inline-block px-16 py-5 bg-black text-white text-lg font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
-            >
-              Reservar ahora
-            </Link>
-            <p className="text-xs text-gray-500 mt-4">
-              Proceso rápido y seguro
-            </p>
           </div>
         </div>
       </div>
 
-      {/* Información de Contacto */}
-      <div className="bg-gray-50 border-t border-gray-200 py-16">
-        <div className="px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-black mb-8 tracking-tight text-center uppercase">
-              Información de Contacto
-            </h2>
+      {/* Contenido del tab activo */}
+      {tabActivo === 'disponibilidad' && <DisponibilidadRapida />}
 
+      {tabActivo === 'como-reservar' && (
+        <div className="px-6 lg:px-8 py-12 md:py-16">
+          <div className="max-w-4xl mx-auto">
+            <div className="space-y-6">
+              {pasos.map((paso) => (
+                <div
+                  key={paso.numero}
+                  className="flex gap-5 items-start p-5 bg-gray-50 rounded-xl border border-gray-200 hover:shadow-md transition-all"
+                >
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-black text-white rounded-xl flex items-center justify-center">
+                      <span className="text-lg font-bold">{paso.numero}</span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-bold text-black mb-1 tracking-tight uppercase">
+                      {paso.titulo}
+                    </h3>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      {paso.descripcion}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="text-center mt-12">
+              <Link
+                to="/reservas"
+                className="inline-block px-12 py-4 bg-black text-white text-sm font-bold rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
+              >
+                Reservar ahora
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tabActivo === 'contacto' && (
+        <div className="px-6 lg:px-8 py-12 md:py-16">
+          <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
               <div className="grid md:grid-cols-2 gap-8">
                 <div>
@@ -266,7 +311,7 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Footer CTA */}
       <div className="bg-black text-white py-12 text-center">
@@ -275,7 +320,7 @@ const LandingPage = () => {
             ¿Listo para jugar?
           </p>
           <Link
-            to="/reservar"
+            to="/reservas"
             className="inline-block px-12 py-4 bg-white text-black font-bold text-sm rounded-lg shadow-sm hover:shadow-md hover:bg-gray-200 active:scale-[0.98] transition-all"
           >
             Ir al calendario

@@ -217,7 +217,7 @@ const FormCancha = ({ canchaEditar, onGuardar, onCancelar }) => {
   );
 };
 
-const GestionCanchas = () => {
+const GestionCanchas = ({ embedded = false }) => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const { canchas, loading, agregarCancha, editarCancha } = useCanchas();
@@ -267,28 +267,29 @@ const GestionCanchas = () => {
     );
   }
 
-  return (
-    <div className="bg-white min-h-full">
-      <div className="px-4 md:px-6 lg:px-8 py-6 md:py-12">
-        <div className="flex items-center justify-between mb-8">
+  const contenido = (
+    <>
+      <div className="flex items-center justify-between mb-8">
+        {!embedded && (
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight">CANCHAS</h1>
             <p className="text-gray-600 text-sm tracking-wide mt-1">
               Gestiona las canchas del complejo
             </p>
           </div>
-          <button
-            onClick={() => { setCanchaEditar(null); setMostrarForm(true); }}
-            className="px-4 py-2.5 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Nueva cancha
-          </button>
-        </div>
+        )}
+        <button
+          onClick={() => { setCanchaEditar(null); setMostrarForm(true); }}
+          className="px-4 py-2.5 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all flex items-center gap-2 ml-auto"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Nueva cancha
+        </button>
+      </div>
 
-        {feedback && (
+      {feedback && (
           <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-800 rounded-xl text-sm">
             {feedback}
           </div>
@@ -372,7 +373,6 @@ const GestionCanchas = () => {
             );
           })}
         </div>
-      </div>
 
       {mostrarForm && (
         <FormCancha
@@ -381,6 +381,16 @@ const GestionCanchas = () => {
           onCancelar={() => { setMostrarForm(false); setCanchaEditar(null); }}
         />
       )}
+    </>
+  );
+
+  if (embedded) return contenido;
+
+  return (
+    <div className="bg-white min-h-full">
+      <div className="px-4 md:px-6 lg:px-8 py-6 md:py-12">
+        {contenido}
+      </div>
     </div>
   );
 };

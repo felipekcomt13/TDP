@@ -1,12 +1,15 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import WizardReserva from '../components/reservas/WizardReserva';
 import ReservaMasiva from '../components/reservas/ReservaMasiva';
+import ListaReservas from '../components/reservas/ListaReservas';
 import { useAuth } from '../context/AuthContext';
 
 const HomePage = () => {
   const [mostrarWizard, setMostrarWizard] = useState(false);
   const [mostrarReservaMasiva, setMostrarReservaMasiva] = useState(false);
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="bg-white min-h-full">
@@ -42,6 +45,24 @@ const HomePage = () => {
             Selecciona deporte, cancha y horario en pocos pasos
           </p>
         </div>
+
+        {/* Lista de reservas del usuario */}
+        {user && (
+          <div className="mt-12 pt-12 border-t border-gray-200">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-black tracking-tight">MIS RESERVAS</h2>
+              {isAdmin() && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="text-xs text-gray-400 underline hover:text-black transition-colors"
+                >
+                  Gestionar reservas
+                </button>
+              )}
+            </div>
+            <ListaReservas />
+          </div>
+        )}
 
         {mostrarWizard && (
           <WizardReserva
