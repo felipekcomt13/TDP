@@ -4,6 +4,7 @@ import { ReservasProvider } from './context/ReservasContext';
 import { SociosComercialesProvider } from './context/SociosComercialesContext';
 import { HeroConfigProvider } from './context/HeroConfigContext';
 import { KioscoProvider } from './context/KioscoContext';
+import { CuentasProvider } from './context/CuentasContext';
 import { CanchasProvider } from './context/CanchasContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
@@ -16,6 +17,7 @@ import GestionUsuarios from './pages/admin/GestionUsuarios';
 import GestionMembresias from './pages/admin/GestionMembresias';
 import GestionSociosComerciales from './pages/admin/GestionSociosComerciales';
 import KioscoAdmin from './pages/admin/KioscoAdmin';
+import CuentasAdmin from './pages/admin/CuentasAdmin';
 import AjustesAdmin from './pages/admin/AjustesAdmin';
 import MiMembresiaPage from './pages/MiMembresiaPage';
 import CampoPage from './pages/CampoPage';
@@ -30,6 +32,7 @@ function App() {
           <SociosComercialesProvider>
           <HeroConfigProvider>
           <KioscoProvider>
+          <CuentasProvider>
           <Routes>
             {/* Login y reset password sin layout */}
             <Route path="/login" element={<LoginPage />} />
@@ -90,6 +93,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/cuentas"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AppLayout><CuentasAdmin /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/ajustes"
               element={
                 <ProtectedRoute requireAdmin={true}>
@@ -109,6 +120,7 @@ function App() {
             <Route path="/admin/canchas" element={<Navigate to="/admin/ajustes/canchas" replace />} />
             <Route path="/admin/configuracion" element={<Navigate to="/admin/ajustes/configuracion" replace />} />
           </Routes>
+          </CuentasProvider>
           </KioscoProvider>
           </HeroConfigProvider>
 

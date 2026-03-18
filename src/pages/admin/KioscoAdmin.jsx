@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useKiosco } from '../../context/KioscoContext';
+import { useCuentas, CUENTAS } from '../../context/CuentasContext';
 
 const formInicial = {
   nombre: '',
@@ -27,6 +28,7 @@ const KioscoAdmin = () => {
     eliminarImagenProducto,
     registrarVenta
   } = useKiosco();
+  const { registrarCargo } = useCuentas();
 
   const [tabActivo, setTabActivo] = useState('inventario');
   const [busqueda, setBusqueda] = useState('');
@@ -239,15 +241,29 @@ const KioscoAdmin = () => {
     setVentaPendiente(producto);
   };
 
+  const getNombrePago = (tipoPago) => {
+    if (tipoPago === 'plin') return 'Plin QR';
+    if (tipoPago === 'efectivo') return 'Efectivo';
+    const cuenta = CUENTAS.find(c => c.id === tipoPago);
+    return cuenta ? cuenta.nombre : tipoPago;
+  };
+
   const confirmarVenta = async (tipoPago) => {
     if (!ventaPendiente) return;
     const producto = ventaPendiente;
     setVentaPendiente(null);
     try {
       const resultado = await registrarVenta(producto.id, 1, tipoPago);
+
+      // Si es cuenta personal, registrar cargo
+      const esCuenta = CUENTAS.some(c => c.id === tipoPago);
+      if (esCuenta) {
+        await registrarCargo(tipoPago, parseFloat(producto.precio), `Kiosco: ${producto.nombre}`);
+      }
+
       setProductoVendido(producto.id);
       setTimeout(() => setProductoVendido(null), 1500);
-      mostrarMensaje(`Venta registrada: ${resultado.producto} — ${tipoPago === 'plin' ? 'Plin QR' : 'Efectivo'} — Stock: ${resultado.stock_restante}`, 'success');
+      mostrarMensaje(`Venta registrada: ${resultado.producto} — ${getNombrePago(tipoPago)} — Stock: ${resultado.stock_restante}`, 'success');
     } catch (error) {
       mostrarMensaje('Error: ' + error.message, 'error');
     }
@@ -691,9 +707,11 @@ const KioscoAdmin = () => {
                     <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${
                       venta.tipo_pago === 'plin'
                         ? 'bg-purple-50 text-purple-600 border border-purple-100'
-                        : 'bg-gray-100 text-gray-500'
+                        : CUENTAS.some(c => c.id === venta.tipo_pago)
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : 'bg-gray-100 text-gray-500'
                     }`}>
-                      {venta.tipo_pago === 'plin' ? 'Plin' : 'Efectivo'}
+                      {getNombrePago(venta.tipo_pago)}
                     </span>
                   </div>
                 </div>
@@ -912,6 +930,23 @@ const KioscoAdmin = () => {
                 </svg>
                 Plin QR
               </button>
+              <div className="border-t border-gray-100 pt-3 mt-1">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider text-center mb-2">Cuentas personales</p>
+                <div className="flex flex-col gap-2">
+                  {CUENTAS.map((cuenta) => (
+                    <button
+                      key={cuenta.id}
+                      onClick={() => confirmarVenta(cuenta.id)}
+                      className="w-full py-3 bg-amber-50 text-amber-700 text-sm font-bold rounded-xl hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-wide border border-amber-200"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      {cuenta.nombre}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button
                 onClick={() => setVentaPendiente(null)}
                 className="w-full py-3 text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors"
