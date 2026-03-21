@@ -226,7 +226,8 @@ const KioscoAdmin = () => {
         nombre: productoSeleccionado.nombre,
         precio: productoSeleccionado.precio,
         stock,
-        codigoBarras: productoSeleccionado.codigo_barras || null
+        codigoBarras: productoSeleccionado.codigo_barras || null,
+        imagenUrl: productoSeleccionado.imagen_url || null
       });
       mostrarMensaje('Stock actualizado correctamente', 'success');
       cerrarModal();
