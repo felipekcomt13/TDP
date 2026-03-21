@@ -23,6 +23,7 @@ const KioscoAdmin = () => {
     agregarProducto,
     editarProducto,
     eliminarProducto,
+    toggleActivoProducto,
     reordenarBatch,
     subirImagenProducto,
     eliminarImagenProducto,
@@ -43,6 +44,7 @@ const KioscoAdmin = () => {
   const [previewImagen, setPreviewImagen] = useState(null);
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [filtroActivo, setFiltroActivo] = useState('activos');
   const [ventaPendiente, setVentaPendiente] = useState(null);
 
   useEffect(() => {
@@ -178,7 +180,8 @@ const KioscoAdmin = () => {
         precio,
         stock,
         codigoBarras: formData.codigoBarras.trim() || null,
-        imagenUrl
+        imagenUrl,
+        activo: modalTipo === 'agregar' ? true : productoSeleccionado?.activo !== false
       };
 
       if (modalTipo === 'agregar') {
@@ -227,7 +230,8 @@ const KioscoAdmin = () => {
         precio: productoSeleccionado.precio,
         stock,
         codigoBarras: productoSeleccionado.codigo_barras || null,
-        imagenUrl: productoSeleccionado.imagen_url || null
+        imagenUrl: productoSeleccionado.imagen_url || null,
+        activo: productoSeleccionado.activo !== false
       });
       mostrarMensaje('Stock actualizado correctamente', 'success');
       cerrarModal();
@@ -323,6 +327,8 @@ const KioscoAdmin = () => {
   // --- FILTROS ---
 
   const productosFiltrados = productos.filter(p => {
+    if (filtroActivo === 'activos' && p.activo === false) return false;
+    if (filtroActivo === 'inactivos' && p.activo !== false) return false;
     if (!busqueda) return true;
     const b = busqueda.toLowerCase();
     return (
@@ -409,14 +415,40 @@ const KioscoAdmin = () => {
         </button>
       </div>
 
+      {/* Filtros de estado */}
+      <div className="flex gap-2 mb-4">
+        {[
+          { valor: 'activos', label: 'Activos' },
+          { valor: 'inactivos', label: 'Inactivos' },
+          { valor: 'todos', label: 'Todos' }
+        ].map(f => (
+          <button
+            key={f.valor}
+            onClick={() => setFiltroActivo(f.valor)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
+              filtroActivo === f.valor
+                ? 'bg-black text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* Stats */}
       <div className="flex gap-3 mb-6">
         <span className="px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium text-gray-600">
-          {productos.length} producto{productos.length !== 1 ? 's' : ''}
+          {productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''}
         </span>
-        {productos.filter(p => p.stock === 0).length > 0 && (
+        {productos.filter(p => p.stock === 0 && p.activo !== false).length > 0 && (
           <span className="px-3 py-1.5 bg-red-50 rounded-full text-xs font-medium text-red-600">
-            {productos.filter(p => p.stock === 0).length} sin stock
+            {productos.filter(p => p.stock === 0 && p.activo !== false).length} sin stock
+          </span>
+        )}
+        {productos.filter(p => p.activo === false).length > 0 && (
+          <span className="px-3 py-1.5 bg-gray-50 rounded-full text-xs font-medium text-gray-400">
+            {productos.filter(p => p.activo === false).length} inactivo{productos.filter(p => p.activo === false).length !== 1 ? 's' : ''}
           </span>
         )}
       </div>
@@ -447,8 +479,19 @@ const KioscoAdmin = () => {
                 draggedId === producto.id ? 'opacity-40 scale-95' : 'hover:shadow-md'
               } ${
                 dragOverId === producto.id && draggedId !== producto.id ? 'border-black border-2 shadow-lg' : 'border-gray-100'
+              } ${
+                producto.activo === false ? 'opacity-50' : ''
               }`}
             >
+              {/* Badge inactivo */}
+              {producto.activo === false && (
+                <div className="mb-3">
+                  <span className="px-2 py-0.5 bg-gray-200 text-gray-500 text-[10px] font-semibold uppercase tracking-wider rounded">
+                    Inactivo
+                  </span>
+                </div>
+              )}
+
               {/* Imagen */}
               <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden mb-4">
                 {producto.imagen_url ? (
@@ -476,6 +519,17 @@ const KioscoAdmin = () => {
 
               {/* Acciones */}
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleActivoProducto(producto)}
+                  className={`h-9 px-3 flex items-center gap-1.5 rounded-lg border text-xs font-medium transition-all ${
+                    producto.activo === false
+                      ? 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                      : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+                  }`}
+                  title={producto.activo === false ? 'Activar' : 'Desactivar'}
+                >
+                  {producto.activo === false ? 'Activar' : 'Desactivar'}
+                </button>
                 <div className="flex-1" />
                 <button
                   onClick={() => abrirModalEditar(producto)}
@@ -506,8 +560,14 @@ const KioscoAdmin = () => {
   // --- RENDER VENTAS ---
 
   const renderVentas = () => {
-    const productosConStock = productosFiltrados.filter(p => p.stock > 0);
-    const productosSinStock = productosFiltrados.filter(p => p.stock === 0);
+    const productosVenta = productos.filter(p => {
+      if (p.activo === false) return false;
+      if (!busqueda) return true;
+      const b = busqueda.toLowerCase();
+      return p.nombre.toLowerCase().includes(b) || (p.codigo_barras && p.codigo_barras.toLowerCase().includes(b));
+    });
+    const productosConStock = productosVenta.filter(p => p.stock > 0);
+    const productosSinStock = productosVenta.filter(p => p.stock === 0);
 
     return (
       <>
@@ -525,7 +585,7 @@ const KioscoAdmin = () => {
           />
         </div>
 
-        {productosFiltrados.length === 0 ? (
+        {productosVenta.length === 0 ? (
           <div className="text-center py-20 bg-gray-50 rounded-2xl">
             <p className="text-gray-400 text-sm">
               {busqueda ? 'No se encontraron productos' : 'No hay productos registrados'}

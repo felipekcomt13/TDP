@@ -87,11 +87,23 @@ export const KioscoProvider = ({ children }) => {
       p_precio: datos.precio,
       p_stock: datos.stock,
       p_codigo_barras: datos.codigoBarras || null,
-      p_imagen_url: datos.imagenUrl || null
+      p_imagen_url: datos.imagenUrl || null,
+      p_activo: datos.activo !== false
     });
 
     if (error) throw error;
     await cargarProductos(false);
+  };
+
+  const toggleActivoProducto = async (producto) => {
+    await editarProducto(producto.id, {
+      nombre: producto.nombre,
+      precio: producto.precio,
+      stock: producto.stock,
+      codigoBarras: producto.codigo_barras,
+      imagenUrl: producto.imagen_url,
+      activo: !producto.activo
+    });
   };
 
   const eliminarProducto = async (id) => {
@@ -203,6 +215,7 @@ export const KioscoProvider = ({ children }) => {
     cargarProductos,
     agregarProducto,
     editarProducto,
+    toggleActivoProducto,
     eliminarProducto,
     reordenarBatch,
     subirImagenProducto,

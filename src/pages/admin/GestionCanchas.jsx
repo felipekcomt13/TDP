@@ -22,6 +22,7 @@ const slugify = (str) =>
 
 const FormCancha = ({ canchaEditar, onGuardar, onCancelar }) => {
   const esNueva = !canchaEditar;
+  const { subirFotoCancha, eliminarFotoCancha } = useCanchas();
   const [form, setForm] = useState({
     nombre: canchaEditar?.nombre || '',
     foto_url: canchaEditar?.foto_url || '',
@@ -32,6 +33,23 @@ const FormCancha = ({ canchaEditar, onGuardar, onCancelar }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [archivoFoto, setArchivoFoto] = useState(null);
+  const [previewFoto, setPreviewFoto] = useState(canchaEditar?.foto_url || null);
+  const [dragActive, setDragActive] = useState(false);
+
+  const procesarArchivo = (archivo) => {
+    if (!archivo) return;
+    if (!archivo.type.startsWith('image/')) {
+      setError('Solo se permiten archivos de imagen');
+      return;
+    }
+    if (archivo.size > 2 * 1024 * 1024) {
+      setError('La imagen no debe superar los 2MB');
+      return;
+    }
+    setArchivoFoto(archivo);
+    setPreviewFoto(URL.createObjectURL(archivo));
+  };
 
   const toggleDeporte = (dep) => {
     setForm(prev => ({
@@ -52,9 +70,21 @@ const FormCancha = ({ canchaEditar, onGuardar, onCancelar }) => {
 
     setLoading(true);
     try {
+      let fotoUrl = form.foto_url || null;
+
+      if (archivoFoto) {
+        if (!esNueva && canchaEditar?.foto_url) {
+          await eliminarFotoCancha(canchaEditar.foto_url);
+        }
+        fotoUrl = await subirFotoCancha(archivoFoto);
+      } else if (!previewFoto && !esNueva && canchaEditar?.foto_url) {
+        await eliminarFotoCancha(canchaEditar.foto_url);
+        fotoUrl = null;
+      }
+
       const datos = {
         nombre: form.nombre.trim(),
-        foto_url: form.foto_url.trim() || null,
+        foto_url: fotoUrl,
         costo_regular: parseInt(form.costo_regular),
         costo_socio: form.costo_socio ? parseInt(form.costo_socio) : null,
         estado: form.estado,
@@ -116,17 +146,42 @@ const FormCancha = ({ canchaEditar, onGuardar, onCancelar }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">URL de foto</label>
-            <input
-              type="url"
-              value={form.foto_url}
-              onChange={e => setForm(p => ({ ...p, foto_url: e.target.value }))}
-              className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 text-sm"
-              placeholder="https://..."
-            />
-            {form.foto_url && (
-              <img src={form.foto_url} alt="Preview" className="mt-2 h-24 w-full object-cover rounded-lg" onError={e => e.target.style.display = 'none'} />
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Foto</label>
+            {previewFoto ? (
+              <div className="relative">
+                <img src={previewFoto} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
+                <button
+                  type="button"
+                  onClick={() => { setPreviewFoto(null); setArchivoFoto(null); }}
+                  className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white rounded-full flex items-center justify-center text-xs hover:bg-black/80 transition-all"
+                >
+                  x
+                </button>
+              </div>
+            ) : (
+              <div
+                onDragOver={e => { e.preventDefault(); setDragActive(true); }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={e => { e.preventDefault(); setDragActive(false); procesarArchivo(e.dataTransfer.files[0]); }}
+                onClick={() => document.getElementById('input-foto-cancha').click()}
+                className={`w-full h-32 border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all ${
+                  dragActive ? 'border-black bg-gray-100' : 'border-gray-200 bg-gray-50 hover:border-gray-400'
+                }`}
+              >
+                <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-xs text-gray-400">Arrastra o haz click para subir</span>
+                <span className="text-[10px] text-gray-300 mt-0.5">Max 2MB</span>
+              </div>
             )}
+            <input
+              id="input-foto-cancha"
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => procesarArchivo(e.target.files[0])}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

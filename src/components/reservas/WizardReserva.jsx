@@ -15,6 +15,7 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
   const [paso, setPaso] = useState(0);
   const [deporte, setDeporte] = useState(null);
   const [cancha, setCancha] = useState(null);
+  const [fotoAmpliada, setFotoAmpliada] = useState(null);
   const [fecha, setFecha] = useState(null);
   const [horaInicio, setHoraInicio] = useState(null);
   const [horaFin, setHoraFin] = useState(null);
@@ -349,7 +350,18 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
                     className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-black hover:shadow-md transition-all text-left flex items-center gap-4 group active:scale-[0.99]"
                   >
                     {c.foto_url ? (
-                      <img src={c.foto_url} alt={c.nombre} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
+                      <div className="relative w-16 h-16 flex-shrink-0">
+                        <img src={c.foto_url} alt={c.nombre} className="w-16 h-16 object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setFotoAmpliada({ url: c.foto_url, nombre: c.nombre }); }}
+                          className="absolute inset-0 bg-black/0 hover:bg-black/30 rounded-lg flex items-center justify-center opacity-0 hover:opacity-100 transition-all"
+                        >
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                          </svg>
+                        </button>
+                      </div>
                     ) : (
                       <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
                         <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -650,10 +662,35 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
     </>
   );
 
+  const modalFoto = fotoAmpliada && (
+    <div
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4"
+      onClick={() => setFotoAmpliada(null)}
+    >
+      <div className="relative max-w-2xl w-full" onClick={e => e.stopPropagation()}>
+        <img
+          src={fotoAmpliada.url}
+          alt={fotoAmpliada.nombre}
+          className="w-full max-h-[80vh] object-contain rounded-xl"
+        />
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 rounded-b-xl">
+          <p className="text-white font-bold text-sm">{fotoAmpliada.nombre}</p>
+        </div>
+        <button
+          onClick={() => setFotoAmpliada(null)}
+          className="absolute top-3 right-3 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70 transition-all"
+        >
+          x
+        </button>
+      </div>
+    </div>
+  );
+
   if (inline) {
     return (
       <div className="bg-white max-w-lg w-full mx-auto">
         {contenido}
+        {modalFoto}
       </div>
     );
   }
@@ -663,6 +700,7 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
       <div className="bg-white max-w-lg w-full max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
         {contenido}
       </div>
+      {modalFoto}
     </div>
   );
 };

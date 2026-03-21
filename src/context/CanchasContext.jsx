@@ -79,13 +79,43 @@ export const CanchasProvider = ({ children }) => {
   };
 
   const editarCancha = async (id, datos) => {
-    const { error } = await supabase
-      .from('canchas')
-      .update(datos)
-      .eq('id', id);
+    const { error } = await supabase.rpc('editar_cancha', {
+      p_id: id,
+      p_nombre: datos.nombre,
+      p_foto_url: datos.foto_url || null,
+      p_costo_regular: datos.costo_regular,
+      p_costo_socio: datos.costo_socio || null,
+      p_estado: datos.estado,
+      p_deportes: datos.deportes
+    });
 
     if (error) throw error;
     await cargarCanchas();
+  };
+
+  const subirFotoCancha = async (archivo) => {
+    const extension = archivo.name.split('.').pop();
+    const nombreArchivo = `canchas/${Date.now()}.${extension}`;
+
+    const { error } = await supabase.storage
+      .from('images')
+      .upload(nombreArchivo, archivo);
+
+    if (error) throw error;
+
+    const { data: urlData } = supabase.storage
+      .from('images')
+      .getPublicUrl(nombreArchivo);
+
+    return urlData.publicUrl;
+  };
+
+  const eliminarFotoCancha = async (url) => {
+    if (!url) return;
+    const partes = url.split('/storage/v1/object/public/images/');
+    if (partes.length < 2) return;
+    const path = partes[1];
+    await supabase.storage.from('images').remove([path]);
   };
 
   const obtenerCanchasPorDeporte = (deporte) => {
@@ -102,7 +132,9 @@ export const CanchasProvider = ({ children }) => {
       cargarCanchas,
       agregarCancha,
       editarCancha,
-      obtenerCanchasPorDeporte
+      obtenerCanchasPorDeporte,
+      subirFotoCancha,
+      eliminarFotoCancha
     }}>
       {children}
     </CanchasContext.Provider>

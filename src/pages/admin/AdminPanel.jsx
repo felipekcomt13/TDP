@@ -7,12 +7,13 @@ import { es } from 'date-fns/locale';
 import { obtenerNombreCancha, calcularPrecioReserva, obtenerDesglosePrecio } from '../../utils/preciosCalculator';
 
 const AdminPanel = () => {
-  const { reservas, confirmarReserva, rechazarReserva, cargarReservas } = useReservas();
+  const { reservas, confirmarReserva, rechazarReserva, eliminarReserva, cargarReservas } = useReservas();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState('pendientes');
   const [filtroCancha, setFiltroCancha] = useState('todas');
   const [busqueda, setBusqueda] = useState('');
+  const [reservaAEliminar, setReservaAEliminar] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -276,6 +277,17 @@ const AdminPanel = () => {
                         </button>
                       </div>
                     )}
+
+                    {reserva.estado === 'confirmada' && (
+                      <div className="flex-shrink-0">
+                        <button
+                          onClick={() => setReservaAEliminar(reserva)}
+                          className="px-4 py-2 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 active:scale-[0.98] transition-all"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -283,6 +295,40 @@ const AdminPanel = () => {
           </div>
         )}
       </div>
+
+      {/* Modal de confirmacion para eliminar reserva */}
+      {reservaAEliminar && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-lg font-bold text-black mb-4 uppercase tracking-wide">
+              Eliminar reserva
+            </h3>
+            <div className="space-y-2 text-sm text-gray-600 mb-4">
+              <p><span className="font-medium text-black">{reservaAEliminar.nombre}</span></p>
+              <p>{format(parseISO(reservaAEliminar.fecha), "EEEE d 'de' MMMM", { locale: es })} - {reservaAEliminar.hora}{reservaAEliminar.horaFin ? ` a ${reservaAEliminar.horaFin}` : ''}</p>
+              <p>{obtenerNombreCancha(reservaAEliminar.cancha || 'principal')}</p>
+            </div>
+            <p className="text-xs text-red-600 mb-6">Esta accion no se puede deshacer.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setReservaAEliminar(null)}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+              >
+                Volver
+              </button>
+              <button
+                onClick={async () => {
+                  await eliminarReserva(reservaAEliminar.id);
+                  setReservaAEliminar(null);
+                }}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 active:scale-[0.98] transition-all"
+              >
+                Eliminar reserva
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
