@@ -170,7 +170,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = () => {
-    return profile?.role === 'admin';
+    return profile?.role === 'admin' || profile?.role === 'empleado';
+  };
+
+  const isEmpleado = () => {
+    return profile?.role === 'empleado';
   };
 
   const isAuthenticated = () => {
@@ -209,6 +213,7 @@ export const AuthProvider = ({ children }) => {
     signOut,
     resetPassword,
     isAdmin,
+    isEmpleado,
     isAuthenticated,
     esSocio,
     diasRestantes,

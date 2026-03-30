@@ -13,7 +13,7 @@ const formInicial = {
 };
 
 const KioscoAdmin = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isEmpleado } = useAuth();
   const navigate = useNavigate();
   const {
     productos,
@@ -31,7 +31,8 @@ const KioscoAdmin = () => {
   } = useKiosco();
   const { registrarCargo } = useCuentas();
 
-  const [tabActivo, setTabActivo] = useState('inventario');
+  const empleado = isEmpleado();
+  const [tabActivo, setTabActivo] = useState(empleado ? 'ventas' : 'inventario');
   const [busqueda, setBusqueda] = useState('');
   const [mensaje, setMensaje] = useState(null);
   const [productoVendido, setProductoVendido] = useState(null);
@@ -39,7 +40,11 @@ const KioscoAdmin = () => {
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [formData, setFormData] = useState(formInicial);
   const [guardando, setGuardando] = useState(false);
-  const [filtroFecha, setFiltroFecha] = useState('');
+  const [filtroDesde, setFiltroDesde] = useState('');
+  const [filtroHasta, setFiltroHasta] = useState('');
+  const [busquedaHistorial, setBusquedaHistorial] = useState('');
+  const [cantidadVenta, setCantidadVenta] = useState(1);
+  const [limitHistorial, setLimitHistorial] = useState(50);
   const [archivoImagen, setArchivoImagen] = useState(null);
   const [previewImagen, setPreviewImagen] = useState(null);
   const [draggedId, setDraggedId] = useState(null);
@@ -243,6 +248,7 @@ const KioscoAdmin = () => {
   };
 
   const handleVender = (producto) => {
+    setCantidadVenta(1);
     setVentaPendiente(producto);
   };
 
@@ -256,19 +262,20 @@ const KioscoAdmin = () => {
   const confirmarVenta = async (tipoPago) => {
     if (!ventaPendiente) return;
     const producto = ventaPendiente;
+    const cantidad = cantidadVenta;
     setVentaPendiente(null);
     try {
-      const resultado = await registrarVenta(producto.id, 1, tipoPago);
+      const resultado = await registrarVenta(producto.id, cantidad, tipoPago);
 
       // Si es cuenta personal, registrar cargo
       const esCuenta = CUENTAS.some(c => c.id === tipoPago);
       if (esCuenta) {
-        await registrarCargo(tipoPago, parseFloat(producto.precio), `Kiosco: ${producto.nombre}`);
+        await registrarCargo(tipoPago, parseFloat(producto.precio) * cantidad, `Kiosco: ${producto.nombre}${cantidad > 1 ? ` x${cantidad}` : ''}`);
       }
 
       setProductoVendido(producto.id);
       setTimeout(() => setProductoVendido(null), 1500);
-      mostrarMensaje(`Venta registrada: ${resultado.producto} — ${getNombrePago(tipoPago)} — Stock: ${resultado.stock_restante}`, 'success');
+      mostrarMensaje(`Venta registrada: ${resultado.producto}${cantidad > 1 ? ` x${cantidad}` : ''} — ${getNombrePago(tipoPago)} — Stock: ${resultado.stock_restante}`, 'success');
     } catch (error) {
       mostrarMensaje('Error: ' + error.message, 'error');
     }
@@ -338,12 +345,57 @@ const KioscoAdmin = () => {
   });
 
   const ventasFiltradas = ventas.filter(v => {
-    if (!filtroFecha) return true;
-    const fechaVenta = new Date(v.created_at).toISOString().split('T')[0];
-    return fechaVenta === filtroFecha;
+    const fechaVenta = new Date(v.created_at);
+    const fechaLocal = `${fechaVenta.getFullYear()}-${String(fechaVenta.getMonth() + 1).padStart(2, '0')}-${String(fechaVenta.getDate()).padStart(2, '0')}`;
+    if (filtroDesde && fechaLocal < filtroDesde) return false;
+    if (filtroHasta && fechaLocal > filtroHasta) return false;
+    if (busquedaHistorial) {
+      const b = busquedaHistorial.toLowerCase();
+      if (!v.nombre_producto?.toLowerCase().includes(b)) return false;
+    }
+    return true;
   });
 
   const totalVentasFiltradas = ventasFiltradas.reduce((sum, v) => sum + (parseFloat(v.precio_venta) * v.cantidad), 0);
+
+  const ventasPaginadas = ventasFiltradas.slice(0, limitHistorial);
+
+  // Desglose por metodo de pago
+  const desglosePago = ventasFiltradas.reduce((acc, v) => {
+    const tipo = v.tipo_pago || 'efectivo';
+    if (!acc[tipo]) acc[tipo] = { total: 0, cantidad: 0 };
+    acc[tipo].total += parseFloat(v.precio_venta) * v.cantidad;
+    acc[tipo].cantidad += 1;
+    return acc;
+  }, {});
+
+  // Agrupar ventas por semana (lunes a domingo) usando fecha local
+  const ventasPorSemana = ventas.reduce((acc, v) => {
+    const fecha = new Date(v.created_at);
+    const dia = fecha.getDay();
+    const diffLunes = dia === 0 ? 6 : dia - 1;
+    const lunes = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate() - diffLunes);
+    const clave = `${lunes.getFullYear()}-${String(lunes.getMonth() + 1).padStart(2, '0')}-${String(lunes.getDate()).padStart(2, '0')}`;
+    if (!acc[clave]) acc[clave] = { total: 0, cantidad: 0 };
+    acc[clave].total += parseFloat(v.precio_venta) * v.cantidad;
+    acc[clave].cantidad += 1;
+    return acc;
+  }, {});
+
+  const [verTodasSemanas, setVerTodasSemanas] = useState(false);
+
+  const semanasOrdenadas = Object.entries(ventasPorSemana)
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([lunes, datos]) => {
+      const fechaLunes = new Date(lunes + 'T12:00:00');
+      const fechaDomingo = new Date(fechaLunes);
+      fechaDomingo.setDate(fechaLunes.getDate() + 6);
+      const formatear = (f) => f.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit' });
+      return {
+        label: `${formatear(fechaLunes)} - ${formatear(fechaDomingo)}`,
+        ...datos
+      };
+    });
 
   const formatearFechaHora = (fechaStr) => {
     const fecha = new Date(fechaStr);
@@ -359,7 +411,7 @@ const KioscoAdmin = () => {
   // --- TABS ---
 
   const tabs = [
-    { valor: 'inventario', label: 'Inventario' },
+    ...(!empleado ? [{ valor: 'inventario', label: 'Inventario' }] : []),
     { valor: 'ventas', label: 'Ventas' },
     { valor: 'historial', label: 'Historial' }
   ];
@@ -572,7 +624,7 @@ const KioscoAdmin = () => {
     return (
       <>
         {/* Busqueda */}
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <svg className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -581,7 +633,7 @@ const KioscoAdmin = () => {
             placeholder="Buscar producto..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+            className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
           />
         </div>
 
@@ -592,115 +644,111 @@ const KioscoAdmin = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Productos con stock */}
-            {productosConStock.map((producto) => (
-              <div
-                key={producto.id}
-                className={`relative bg-white rounded-xl shadow-sm hover:shadow-md border p-5 transition-all duration-300 ${
-                  productoVendido === producto.id
-                    ? 'border-emerald-400 scale-[1.02] shadow-emerald-100 shadow-md'
-                    : 'border-gray-100'
-                }`}
-              >
-                {/* Overlay vendido */}
-                {productoVendido === producto.id && (
-                  <div className="absolute inset-0 bg-emerald-500/90 rounded-xl flex flex-col items-center justify-center z-10 animate-slideUp">
-                    <svg className="w-10 h-10 text-white mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span className="text-white font-bold text-sm uppercase tracking-wide">Vendido</span>
-                  </div>
-                )}
-
-                {/* Imagen */}
-                <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden mb-4">
-                  {producto.imagen_url ? (
-                    <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-contain p-2" />
-                  ) : (
-                    <span className="text-3xl font-bold text-gray-300">{producto.nombre.charAt(0).toUpperCase()}</span>
+          <>
+            {/* Productos con stock - layout compacto */}
+            <div className="space-y-2 mb-4">
+              {productosConStock.map((producto) => (
+                <div
+                  key={producto.id}
+                  className={`relative flex items-center gap-3 bg-white rounded-xl border p-3 transition-all duration-300 ${
+                    productoVendido === producto.id
+                      ? 'border-emerald-400 shadow-emerald-100 shadow-md'
+                      : 'border-gray-100 hover:shadow-sm'
+                  }`}
+                >
+                  {/* Overlay vendido */}
+                  {productoVendido === producto.id && (
+                    <div className="absolute inset-0 bg-emerald-500/90 rounded-xl flex items-center justify-center z-10">
+                      <svg className="w-6 h-6 text-white mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-white font-bold text-sm uppercase tracking-wide">Vendido</span>
+                    </div>
                   )}
-                </div>
 
-                {/* Info */}
-                <div className="mb-4">
-                  <h3 className="font-semibold text-gray-900 text-base truncate mb-1.5">{producto.nombre}</h3>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-gray-900">S/ {parseFloat(producto.precio).toFixed(2)}</span>
-                    <span className={`px-2.5 py-0.5 text-[11px] font-semibold rounded-full border ${stockColor(producto.stock)}`}>
-                      {producto.stock} uds
-                    </span>
+                  {/* Imagen miniatura */}
+                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {producto.imagen_url ? (
+                      <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-contain p-1" />
+                    ) : (
+                      <span className="text-lg font-bold text-gray-300">{producto.nombre.charAt(0).toUpperCase()}</span>
+                    )}
                   </div>
-                </div>
 
-                {/* Acciones */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => abrirModalStock(producto)}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 transition-all"
-                    title="Editar stock"
-                  >
-                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm truncate">{producto.nombre}</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-sm font-medium text-gray-900">S/ {parseFloat(producto.precio).toFixed(2)}</span>
+                      <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border ${stockColor(producto.stock)}`}>
+                        {producto.stock}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Acciones */}
+                  {!empleado && (
+                    <button
+                      onClick={() => abrirModalStock(producto)}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 transition-all flex-shrink-0"
+                      title="Editar stock"
+                    >
+                      <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleVender(producto)}
-                    className="flex-1 py-2.5 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
+                    className="px-5 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all flex-shrink-0"
                   >
                     Vender
                   </button>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
             {/* Productos sin stock */}
-            {productosSinStock.map((producto) => (
-              <div
-                key={producto.id}
-                className="bg-white rounded-xl border border-gray-100 p-5 opacity-40 transition-all"
-              >
-                {/* Imagen */}
-                <div className="w-full h-32 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden mb-4">
-                  {producto.imagen_url ? (
-                    <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-contain p-2" />
-                  ) : (
-                    <span className="text-3xl font-bold text-gray-300">{producto.nombre.charAt(0).toUpperCase()}</span>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="mb-4">
-                  <h3 className="font-semibold text-gray-500 text-base truncate mb-1.5">{producto.nombre}</h3>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-gray-400">S/ {parseFloat(producto.precio).toFixed(2)}</span>
-                    <span className="px-2.5 py-0.5 text-[11px] font-semibold rounded-full border text-red-600 bg-red-50 border-red-100">
-                      Sin stock
-                    </span>
-                  </div>
-                </div>
-
-                {/* Acciones */}
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => abrirModalStock(producto)}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 transition-all"
-                    title="Agregar stock"
-                  >
-                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                  </button>
-                  <button
-                    disabled
-                    className="flex-1 py-2.5 bg-gray-100 text-gray-400 text-sm font-medium rounded-lg cursor-not-allowed"
-                  >
-                    Agotado
-                  </button>
+            {productosSinStock.length > 0 && (
+              <div className="border-t border-gray-100 pt-3">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Sin stock</p>
+                <div className="space-y-2">
+                  {productosSinStock.map((producto) => (
+                    <div
+                      key={producto.id}
+                      className="flex items-center gap-3 bg-white rounded-xl border border-gray-100 p-3 opacity-40"
+                    >
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {producto.imagen_url ? (
+                          <img src={producto.imagen_url} alt={producto.nombre} className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <span className="text-lg font-bold text-gray-300">{producto.nombre.charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-gray-500 text-sm truncate">{producto.nombre}</h3>
+                        <span className="text-sm font-medium text-gray-400">S/ {parseFloat(producto.precio).toFixed(2)}</span>
+                      </div>
+                      {!empleado && (
+                        <button
+                          onClick={() => abrirModalStock(producto)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 transition-all flex-shrink-0"
+                          title="Agregar stock"
+                        >
+                          <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                        </button>
+                      )}
+                      <span className="px-3 py-1.5 bg-gray-100 text-gray-400 text-xs font-medium rounded-lg">
+                        Agotado
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </>
     );
@@ -708,33 +756,135 @@ const KioscoAdmin = () => {
 
   // --- RENDER HISTORIAL ---
 
+  const hayFiltrosActivos = filtroDesde || filtroHasta || busquedaHistorial;
+
   const renderHistorial = () => (
     <>
-      {/* Filtro de fecha */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
-        <div className="flex-1">
+      {/* Filtros */}
+      <div className="space-y-3 mb-6">
+        {/* Busqueda + botones rapidos */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex-1 relative">
+            <svg className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar producto en historial..."
+              value={busquedaHistorial}
+              onChange={(e) => setBusquedaHistorial(e.target.value)}
+              className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+            />
+          </div>
+          <button
+            onClick={() => {
+              const hoy = new Date();
+              const str = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+              setFiltroDesde(str);
+              setFiltroHasta(str);
+            }}
+            className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
+          >
+            Hoy
+          </button>
+          {hayFiltrosActivos && (
+            <button
+              onClick={() => { setFiltroDesde(''); setFiltroHasta(''); setBusquedaHistorial(''); setLimitHistorial(50); }}
+              className="px-5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+        {/* Rango de fechas */}
+        <div className="flex items-center gap-2">
           <input
             type="date"
-            value={filtroFecha}
-            onChange={(e) => setFiltroFecha(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+            value={filtroDesde}
+            onChange={(e) => setFiltroDesde(e.target.value)}
+            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+          />
+          <span className="text-xs text-gray-400">a</span>
+          <input
+            type="date"
+            value={filtroHasta}
+            onChange={(e) => setFiltroHasta(e.target.value)}
+            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
           />
         </div>
-        <button
-          onClick={() => setFiltroFecha(new Date().toISOString().split('T')[0])}
-          className="px-6 py-3 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
-        >
-          Hoy
-        </button>
-        {filtroFecha && (
-          <button
-            onClick={() => setFiltroFecha('')}
-            className="px-5 py-3 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
-          >
-            Ver todas
-          </button>
-        )}
       </div>
+
+      {/* Resumen semanal */}
+      {!hayFiltrosActivos && semanasOrdenadas.length > 0 && (() => {
+        const semanasVisibles = verTodasSemanas ? semanasOrdenadas : semanasOrdenadas.slice(0, 4);
+        const hayMas = semanasOrdenadas.length > 4;
+        return (
+          <div className="mb-6">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Total por semana</h3>
+            <div className="overflow-hidden rounded-xl border border-gray-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="text-left px-4 py-2.5 font-semibold">Semana</th>
+                    <th className="text-center px-4 py-2.5 font-semibold">Ventas</th>
+                    <th className="text-right px-4 py-2.5 font-semibold">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {semanasVisibles.map((semana, i) => (
+                    <tr
+                      key={i}
+                      className={i === 0 ? 'bg-gray-900 text-white' : 'bg-white border-t border-gray-100'}
+                    >
+                      <td className={`px-4 py-3 font-medium ${i === 0 ? 'text-gray-200' : 'text-gray-600'}`}>
+                        {semana.label}
+                      </td>
+                      <td className={`px-4 py-3 text-center ${i === 0 ? 'text-gray-400' : 'text-gray-400'}`}>
+                        {semana.cantidad}
+                      </td>
+                      <td className={`px-4 py-3 text-right font-bold ${i === 0 ? 'text-white' : 'text-gray-900'}`}>
+                        S/ {semana.total.toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {hayMas && (
+              <button
+                onClick={() => setVerTodasSemanas(!verTodasSemanas)}
+                className="mt-2 w-full py-2 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                {verTodasSemanas ? 'Ver menos' : `Ver todas (${semanasOrdenadas.length} semanas)`}
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Desglose por metodo de pago */}
+      {ventasFiltradas.length > 0 && Object.keys(desglosePago).length > 1 && (
+        <div className="mb-6">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Por metodo de pago</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {Object.entries(desglosePago).sort(([,a], [,b]) => b.total - a.total).map(([tipo, datos]) => (
+              <div key={tipo} className="bg-white border border-gray-100 rounded-xl p-3">
+                <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded-full mb-2 ${
+                  tipo === 'plin'
+                    ? 'bg-purple-50 text-purple-600'
+                    : CUENTAS.some(c => c.id === tipo)
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {getNombrePago(tipo)}
+                </span>
+                <p className="text-sm font-bold text-gray-900">S/ {datos.total.toFixed(2)}</p>
+                <p className="text-[11px] text-gray-400">{datos.cantidad} venta{datos.cantidad !== 1 ? 's' : ''}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Lista de ventas */}
       {ventasFiltradas.length === 0 ? (
@@ -743,20 +893,20 @@ const KioscoAdmin = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           <p className="text-gray-400 text-sm">
-            {filtroFecha ? 'No hay ventas en esta fecha' : 'No hay ventas registradas'}
+            {hayFiltrosActivos ? 'No hay ventas con estos filtros' : 'No hay ventas registradas'}
           </p>
         </div>
       ) : (
         <>
-          <div className="space-y-3">
-            {ventasFiltradas.map((venta) => (
+          <div className="space-y-2">
+            {ventasPaginadas.map((venta) => (
               <div
                 key={venta.id}
-                className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-gray-100"
+                className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100"
               >
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-gray-900 text-sm truncate">{venta.nombre_producto}</h3>
-                  <div className="flex items-center gap-3 mt-1">
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
                     <span className="text-xs text-gray-400">
                       {formatearFechaHora(venta.created_at)}
                     </span>
@@ -785,10 +935,20 @@ const KioscoAdmin = () => {
             ))}
           </div>
 
+          {/* Cargar mas */}
+          {ventasFiltradas.length > limitHistorial && (
+            <button
+              onClick={() => setLimitHistorial(prev => prev + 50)}
+              className="mt-4 w-full py-3 bg-gray-50 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              Cargar mas ({ventasFiltradas.length - limitHistorial} restantes)
+            </button>
+          )}
+
           {/* Total */}
           <div className="mt-6 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
             <span className="text-sm text-gray-300">
-              Total {filtroFecha ? 'del dia' : 'general'} ({ventasFiltradas.length} venta{ventasFiltradas.length !== 1 ? 's' : ''})
+              Total{hayFiltrosActivos ? ' filtrado' : ' general'} ({ventasFiltradas.length} venta{ventasFiltradas.length !== 1 ? 's' : ''})
             </span>
             <span className="text-xl font-bold">
               S/ {totalVentasFiltradas.toFixed(2)}
@@ -968,9 +1128,34 @@ const KioscoAdmin = () => {
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl animate-scaleIn">
             <div className="p-8 pb-4">
               <h2 className="text-lg font-bold text-gray-900 text-center mb-1">Metodo de pago</h2>
-              <p className="text-sm text-gray-500 text-center">
+              <p className="text-sm text-gray-500 text-center mb-4">
                 {ventaPendiente.nombre} — S/ {parseFloat(ventaPendiente.precio).toFixed(2)}
               </p>
+              {/* Selector de cantidad */}
+              <div className="flex items-center justify-center gap-4 bg-gray-50 rounded-xl py-3">
+                <button
+                  onClick={() => setCantidadVenta(prev => Math.max(1, prev - 1))}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 active:scale-95 transition-all text-lg font-bold"
+                >
+                  -
+                </button>
+                <div className="text-center min-w-[60px]">
+                  <span className="text-2xl font-bold text-gray-900">{cantidadVenta}</span>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider">unidad{cantidadVenta !== 1 ? 'es' : ''}</p>
+                </div>
+                <button
+                  onClick={() => setCantidadVenta(prev => Math.min(ventaPendiente.stock, prev + 1))}
+                  disabled={cantidadVenta >= ventaPendiente.stock}
+                  className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100 active:scale-95 transition-all text-lg font-bold disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  +
+                </button>
+              </div>
+              {cantidadVenta > 1 && (
+                <p className="text-center text-sm font-semibold text-gray-900 mt-2">
+                  Total: S/ {(parseFloat(ventaPendiente.precio) * cantidadVenta).toFixed(2)}
+                </p>
+              )}
             </div>
             <div className="px-8 pb-8 flex flex-col gap-3">
               <button
@@ -1084,9 +1269,9 @@ const KioscoAdmin = () => {
           </p>
         </div>
 
-        {/* Toast */}
+        {/* Toast flotante */}
         {mensaje && (
-          <div className={`mb-6 px-5 py-4 rounded-xl border shadow-sm flex items-center gap-3 text-sm animate-slideUp ${
+          <div className={`fixed top-24 right-4 z-50 max-w-sm px-5 py-4 rounded-xl border shadow-lg flex items-center gap-3 text-sm animate-slideUp ${
             mensaje.tipo === 'success'
               ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
               : 'bg-red-50 border-red-200 text-red-800'

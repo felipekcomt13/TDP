@@ -202,9 +202,9 @@ const AppLayout = ({ children }) => {
                 </p>
                 {usuarioEsSocio && <BadgeSocio />}
               </div>
-              {profile?.role === 'admin' && (
+              {(profile?.role === 'admin' || profile?.role === 'empleado') && (
                 <p className="text-[10px] uppercase tracking-wider text-gray-500 mt-0.5">
-                  Administrador
+                  {profile?.role === 'admin' ? 'Administrador' : 'Empleado'}
                 </p>
               )}
             </div>
@@ -375,9 +375,9 @@ const AppLayout = ({ children }) => {
                       </p>
                       {usuarioEsSocio && <BadgeSocio />}
                     </div>
-                    {profile?.role === 'admin' && (
+                    {(profile?.role === 'admin' || profile?.role === 'empleado') && (
                       <p className="text-[10px] uppercase tracking-wider text-gray-500">
-                        Administrador
+                        {profile?.role === 'admin' ? 'Administrador' : 'Empleado'}
                       </p>
                     )}
                   </div>

@@ -5,7 +5,7 @@ import { supabase } from '../../services/supabase/client';
 import BadgeSocio from '../../components/shared/BadgeSocio';
 
 const GestionUsuarios = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isEmpleado } = useAuth();
   const navigate = useNavigate();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,10 +55,8 @@ const GestionUsuarios = () => {
 
       if (error) throw error;
 
-      mostrarMensaje(
-        `Usuario ${nuevoRol === 'admin' ? 'promovido a administrador' : 'cambiado a usuario normal'}`,
-        'success'
-      );
+      const mensajeRol = nuevoRol === 'admin' ? 'promovido a administrador' : nuevoRol === 'empleado' ? 'asignado como empleado' : 'cambiado a usuario normal';
+      mostrarMensaje(`Usuario ${mensajeRol}`, 'success');
       await cargarUsuarios();
     } catch (error) {
       const mensajeError = error.message || 'No se pudo cambiar el rol del usuario';
@@ -201,6 +199,7 @@ const GestionUsuarios = () => {
           <div className="hidden sm:flex items-center gap-3 text-xs text-gray-400">
             <span>{usuarios.length} total</span>
             <span>{contarPorRol('admin')} admins</span>
+            <span className="text-blue-500">{contarPorRol('empleado')} empleados</span>
             <span className="text-green-500">{contarSocios()} socios</span>
           </div>
         </div>
@@ -216,7 +215,7 @@ const GestionUsuarios = () => {
               <div
                 key={usuario.id}
                 className={`bg-white rounded-xl shadow-sm border p-6 transition-all hover:shadow-md ${
-                  usuario.role === 'admin' ? 'border-gray-900' : 'border-gray-100'
+                  usuario.role === 'admin' ? 'border-gray-900' : usuario.role === 'empleado' ? 'border-blue-300' : 'border-gray-100'
                 }`}
               >
                 <div className="flex flex-col lg:flex-row justify-between gap-4">
@@ -229,10 +228,12 @@ const GestionUsuarios = () => {
                         className={`px-3 py-1 border text-[10px] font-semibold rounded-full ${
                           usuario.role === 'admin'
                             ? 'border-black text-black bg-black bg-opacity-5'
+                            : usuario.role === 'empleado'
+                            ? 'border-blue-500 text-blue-600 bg-blue-50'
                             : 'border-gray-400 text-gray-600'
                         }`}
                       >
-                        {usuario.role === 'admin' ? 'Admin' : 'Usuario'}
+                        {usuario.role === 'admin' ? 'Admin' : usuario.role === 'empleado' ? 'Empleado' : 'Usuario'}
                       </span>
                       {usuario.es_socio && <BadgeSocio />}
                     </div>
@@ -259,21 +260,42 @@ const GestionUsuarios = () => {
                   </div>
 
                   <div className="flex flex-wrap gap-2 lg:flex-col lg:items-end">
-                    {/* Botones de Rol */}
-                    {usuario.role === 'user' ? (
-                      <button
-                        onClick={() => cambiarRol(usuario.id, 'admin')}
-                        className="px-4 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
-                      >
-                        Hacer Admin
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => cambiarRol(usuario.id, 'user')}
-                        className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
-                      >
-                        Quitar Admin
-                      </button>
+                    {/* Botones de Rol — solo visibles para admins */}
+                    {!isEmpleado() && (
+                      <>
+                        {usuario.role === 'user' && (
+                          <>
+                            <button
+                              onClick={() => cambiarRol(usuario.id, 'admin')}
+                              className="px-4 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
+                            >
+                              Hacer Admin
+                            </button>
+                            <button
+                              onClick={() => cambiarRol(usuario.id, 'empleado')}
+                              className="px-4 py-2 bg-blue-600 text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-blue-700 active:scale-[0.98] transition-all"
+                            >
+                              Hacer Empleado
+                            </button>
+                          </>
+                        )}
+                        {usuario.role === 'admin' && (
+                          <button
+                            onClick={() => cambiarRol(usuario.id, 'user')}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+                          >
+                            Quitar Admin
+                          </button>
+                        )}
+                        {usuario.role === 'empleado' && (
+                          <button
+                            onClick={() => cambiarRol(usuario.id, 'user')}
+                            className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+                          >
+                            Quitar Empleado
+                          </button>
+                        )}
+                      </>
                     )}
 
                     {/* Botones de Socio */}
