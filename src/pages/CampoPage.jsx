@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import logo from '../assets/images/logo.png';
 import { useAuth } from '../context/AuthContext';
 import { PRECIOS } from '../utils/preciosCalculator';
+import BannerLibroReclamaciones from '../components/shared/BannerLibroReclamaciones';
 
 const CampoPage = () => {
   const { isAdmin, esSocio, isAuthenticated } = useAuth();
@@ -320,7 +321,7 @@ const CampoPage = () => {
   };
 
   return (
-    <div className="bg-gray-100 min-h-full py-4 md:py-8">
+    <div className="relative bg-gray-100 min-h-full py-4 md:py-8">
       <div className="px-2 md:px-4 relative">
         <h1 className="text-2xl md:text-3xl font-bold text-center mb-3 md:mb-4">Nuestras Canchas</h1>
 
@@ -509,6 +510,7 @@ const CampoPage = () => {
           </div>
         )}
       </div>
+      <BannerLibroReclamaciones variant="light" />
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BannerLibroReclamaciones from '../components/shared/BannerLibroReclamaciones';
 import WizardReserva from '../components/reservas/WizardReserva';
 import ReservaMasiva from '../components/reservas/ReservaMasiva';
 import ListaReservas from '../components/reservas/ListaReservas';
@@ -12,7 +13,7 @@ const HomePage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-white min-h-full">
+    <div className="relative bg-white min-h-full">
       <div className="px-4 md:px-6 lg:px-8 py-8 md:py-12">
 
         <div className="flex items-center justify-between mb-12">
@@ -75,6 +76,7 @@ const HomePage = () => {
           <ReservaMasiva onCerrar={() => setMostrarReservaMasiva(false)} />
         )}
       </div>
+      <BannerLibroReclamaciones variant="light" />
     </div>
   );
 };

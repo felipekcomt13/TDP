@@ -22,6 +22,7 @@ import AjustesAdmin from './pages/admin/AjustesAdmin';
 import MiMembresiaPage from './pages/MiMembresiaPage';
 import CampoPage from './pages/CampoPage';
 import SociosComercialesPage from './pages/SociosComercialesPage';
+import LibroReclamacionesPage from './pages/LibroReclamacionesPage';
 
 function App() {
   return (
@@ -43,6 +44,7 @@ function App() {
             <Route path="/reservas" element={<AppLayout><HomePage /></AppLayout>} />
             <Route path="/reservar" element={<Navigate to="/reservas" replace />} />
             <Route path="/campo" element={<AppLayout><CampoPage /></AppLayout>} />
+            <Route path="/libro-reclamaciones" element={<AppLayout><LibroReclamacionesPage /></AppLayout>} />
             <Route path="/socios-comerciales" element={<AppLayout><SociosComercialesPage /></AppLayout>} />
             <Route
               path="/mi-membresia"

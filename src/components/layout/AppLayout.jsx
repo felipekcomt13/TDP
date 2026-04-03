@@ -502,6 +502,7 @@ const AppLayout = ({ children }) => {
           {children}
         </main>
       </div>
+
     </div>
   );
 };
