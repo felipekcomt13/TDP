@@ -19,6 +19,7 @@ import GestionSociosComerciales from './pages/admin/GestionSociosComerciales';
 import KioscoAdmin from './pages/admin/KioscoAdmin';
 import CuentasAdmin from './pages/admin/CuentasAdmin';
 import AjustesAdmin from './pages/admin/AjustesAdmin';
+import ReclamacionesAdmin from './pages/admin/ReclamacionesAdmin';
 import MiMembresiaPage from './pages/MiMembresiaPage';
 import CampoPage from './pages/CampoPage';
 import SociosComercialesPage from './pages/SociosComercialesPage';
@@ -99,6 +100,14 @@ function App() {
               element={
                 <ProtectedRoute requireAdmin={true}>
                   <AppLayout><CuentasAdmin /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reclamaciones"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AppLayout><ReclamacionesAdmin /></AppLayout>
                 </ProtectedRoute>
               }
             />
