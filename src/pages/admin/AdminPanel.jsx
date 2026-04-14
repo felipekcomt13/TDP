@@ -181,8 +181,8 @@ const AdminPanel = () => {
               const esPendiente = reserva.estado === 'pendiente';
               const esRechazada = reserva.estado === 'rechazada';
               const cancha = reserva.cancha || 'principal';
-              const precio = calcularPrecioReserva(cancha, reserva.hora, reserva.horaFin, false);
-              const desglose = reserva.horaFin ? obtenerDesglosePrecio(cancha, reserva.hora, reserva.horaFin, false) : null;
+              const precio = calcularPrecioReserva(cancha, reserva.hora, reserva.horaFin);
+              const desglose = reserva.horaFin ? obtenerDesglosePrecio(cancha, reserva.hora, reserva.horaFin) : null;
 
               return (
                 <div

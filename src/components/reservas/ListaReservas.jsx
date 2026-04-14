@@ -122,8 +122,8 @@ const ListaReservas = () => {
             const esPasada = fechaReserva < fechaActual;
             const esPendiente = reserva.estado === 'pendiente';
             const cancha = reserva.cancha || 'principal';
-            const precio = calcularPrecioReserva(cancha, reserva.hora, reserva.horaFin, esSocio());
-            const desglose = reserva.horaFin ? obtenerDesglosePrecio(cancha, reserva.hora, reserva.horaFin, esSocio()) : null;
+            const precio = calcularPrecioReserva(cancha, reserva.hora, reserva.horaFin);
+            const desglose = reserva.horaFin ? obtenerDesglosePrecio(cancha, reserva.hora, reserva.horaFin) : null;
 
             return (
               <div
@@ -159,9 +159,6 @@ const ListaReservas = () => {
                       }`}>
                         {reserva.estado}
                       </span>
-                      {esSocio() && (
-                        <span className="text-[10px] text-gray-400">Tarifa socio</span>
-                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
                       <span className="md:hidden">

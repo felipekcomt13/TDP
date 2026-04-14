@@ -141,8 +141,7 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
 
   const calcularPrecio = () => {
     if (!cancha) return 0;
-    const esS = esSocio();
-    const precioPorHora = esS && cancha.costo_socio ? cancha.costo_socio : cancha.costo_regular;
+    const precioPorHora = cancha.costo_regular;
     return precioPorHora * (calcularMinutos() / 60);
   };
 
@@ -377,13 +376,8 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
                       <div className="font-bold text-base text-black">{c.nombre}</div>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-sm text-gray-500">
-                          S/ {esSocio() && c.costo_socio ? c.costo_socio : c.costo_regular}/hora
+                          S/ {c.costo_regular}/hora
                         </span>
-                        {esSocio() && c.costo_socio && (
-                          <span className="text-[10px] bg-black text-white px-2 py-0.5 rounded-full font-medium">
-                            Tarifa Socio
-                          </span>
-                        )}
                       </div>
                     </div>
                     <svg className="w-5 h-5 text-gray-300 group-hover:text-black transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -522,9 +516,6 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
                 <span className="text-gray-500">Total</span>
                 <div className="text-right">
                   <span className="font-bold text-xl text-black">S/ {calcularPrecio()}</span>
-                  {esSocio() && cancha?.costo_socio && (
-                    <span className="ml-2 text-[10px] bg-black text-white px-2 py-0.5 rounded-full">Socio</span>
-                  )}
                 </div>
               </div>
             </div>
