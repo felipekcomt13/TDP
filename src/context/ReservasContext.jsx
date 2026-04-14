@@ -17,7 +17,7 @@ export const ReservasProvider = ({ children }) => {
   const [configuracion, setConfiguracion] = useState({
     horaInicio: '06:00',
     horaFin: '25:00',
-    intervalo: 60, // minutos
+    intervalo: 30, // minutos
     diasSemana: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
   });
   const { user } = useAuth();

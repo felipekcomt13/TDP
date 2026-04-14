@@ -14,12 +14,14 @@ export const useKiosco = () => {
 export const KioscoProvider = ({ children }) => {
   const [productos, setProductos] = useState([]);
   const [ventas, setVentas] = useState([]);
+  const [egresosCaja, setEgresosCaja] = useState([]);
   const [loadingProductos, setLoadingProductos] = useState(true);
   const [loadingVentas, setLoadingVentas] = useState(true);
 
   useEffect(() => {
     cargarProductos();
     cargarVentas();
+    cargarEgresosCaja();
 
     const productosSubscription = supabase
       .channel('productos_kiosco_changes')
@@ -35,9 +37,17 @@ export const KioscoProvider = ({ children }) => {
       })
       .subscribe();
 
+    const egresosSubscription = supabase
+      .channel('egresos_caja_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'egresos_caja' }, () => {
+        cargarEgresosCaja();
+      })
+      .subscribe();
+
     return () => {
       productosSubscription.unsubscribe();
       ventasSubscription.unsubscribe();
+      egresosSubscription.unsubscribe();
     };
   }, []);
 
@@ -207,9 +217,48 @@ export const KioscoProvider = ({ children }) => {
     }
   };
 
+  // --- EGRESOS CAJA ---
+
+  const cargarEgresosCaja = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('egresos_caja')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setEgresosCaja(data || []);
+    } catch {
+      // Silenciado
+    }
+  };
+
+  const registrarEgresoCaja = async (monto, descripcion) => {
+    const { data, error } = await supabase
+      .from('egresos_caja')
+      .insert([{ monto, descripcion, registrado_por: (await supabase.auth.getUser()).data.user?.id }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    await cargarEgresosCaja();
+    return data;
+  };
+
+  const eliminarEgresoCaja = async (id) => {
+    const { error } = await supabase
+      .from('egresos_caja')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    await cargarEgresosCaja();
+  };
+
   const value = {
     productos,
     ventas,
+    egresosCaja,
     loadingProductos,
     loadingVentas,
     cargarProductos,
@@ -221,7 +270,9 @@ export const KioscoProvider = ({ children }) => {
     subirImagenProducto,
     eliminarImagenProducto,
     registrarVenta,
-    cargarVentas
+    cargarVentas,
+    registrarEgresoCaja,
+    eliminarEgresoCaja
   };
 
   return (

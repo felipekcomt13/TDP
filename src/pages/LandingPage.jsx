@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useHeroConfig } from '../context/HeroConfigContext';
 import DisponibilidadRapida from '../components/reservas/DisponibilidadRapida';
+import WizardReserva from '../components/reservas/WizardReserva';
 import BannerLibroReclamaciones from '../components/shared/BannerLibroReclamaciones';
 
 
@@ -55,6 +56,7 @@ const LandingPage = () => {
   const videoRef = useRef(null);
   const [muteado, setMuteado] = useState(true);
   const [tabActivo, setTabActivo] = useState('disponibilidad');
+  const [mostrarWizard, setMostrarWizard] = useState(false);
 
   const videoActivo = heroConfig.video_activo && heroConfig.video_url;
   const esVideoNativo = videoActivo && !esGoogleDrive(heroConfig.video_url);
@@ -218,7 +220,7 @@ const LandingPage = () => {
       </div>
 
       {/* Contenido del tab activo */}
-      {tabActivo === 'disponibilidad' && <DisponibilidadRapida />}
+      {tabActivo === 'disponibilidad' && <DisponibilidadRapida onSeleccionarSlot={() => setMostrarWizard(true)} />}
 
       {tabActivo === 'como-reservar' && (
         <div className="px-6 lg:px-8 py-12 md:py-16">
@@ -331,6 +333,12 @@ const LandingPage = () => {
         <BannerLibroReclamaciones variant="dark" />
       </div>
 
+      {mostrarWizard && (
+        <WizardReserva
+          onCerrar={() => setMostrarWizard(false)}
+          onReservaCreada={() => setMostrarWizard(false)}
+        />
+      )}
     </div>
   );
 };

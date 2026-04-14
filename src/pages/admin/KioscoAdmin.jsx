@@ -18,6 +18,7 @@ const KioscoAdmin = () => {
   const {
     productos,
     ventas,
+    egresosCaja,
     loadingProductos,
     loadingVentas,
     agregarProducto,
@@ -27,7 +28,9 @@ const KioscoAdmin = () => {
     reordenarBatch,
     subirImagenProducto,
     eliminarImagenProducto,
-    registrarVenta
+    registrarVenta,
+    registrarEgresoCaja,
+    eliminarEgresoCaja
   } = useKiosco();
   const { registrarCargo } = useCuentas();
 
@@ -51,6 +54,9 @@ const KioscoAdmin = () => {
   const [dragOverId, setDragOverId] = useState(null);
   const [filtroActivo, setFiltroActivo] = useState('activos');
   const [ventaPendiente, setVentaPendiente] = useState(null);
+  const [modalEgreso, setModalEgreso] = useState(false);
+  const [egresoForm, setEgresoForm] = useState({ monto: '', descripcion: '' });
+  const [cajaExpandida, setCajaExpandida] = useState(false);
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -396,6 +402,54 @@ const KioscoAdmin = () => {
         ...datos
       };
     });
+
+  // --- CAJA ---
+  const hoyStr = (() => {
+    const h = new Date();
+    return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
+  })();
+
+  const totalEfectivoHoy = ventas
+    .filter(v => {
+      if (v.tipo_pago !== 'efectivo') return false;
+      const f = new Date(v.created_at);
+      const fStr = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+      return fStr === hoyStr;
+    })
+    .reduce((sum, v) => sum + parseFloat(v.precio_venta) * v.cantidad, 0);
+
+  const egresosHoy = egresosCaja.filter(e => {
+    const f = new Date(e.created_at);
+    const fStr = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+    return fStr === hoyStr;
+  });
+
+  const totalEgresosHoy = egresosHoy.reduce((sum, e) => sum + parseFloat(e.monto), 0);
+  const CAJA_INICIAL = 156.80;
+  const saldoCaja = CAJA_INICIAL + totalEfectivoHoy - totalEgresosHoy;
+
+  const handleRegistrarEgreso = async () => {
+    const monto = parseFloat(egresoForm.monto);
+    if (isNaN(monto) || monto <= 0) {
+      mostrarMensaje('Ingresa un monto valido', 'error');
+      return;
+    }
+    if (!egresoForm.descripcion.trim()) {
+      mostrarMensaje('Ingresa una descripcion', 'error');
+      return;
+    }
+    setGuardando(true);
+    try {
+      await registrarEgresoCaja(monto, egresoForm.descripcion.trim());
+      mostrarMensaje(`Egreso registrado: S/ ${monto.toFixed(2)}`, 'success');
+      setModalEgreso(false);
+      setEgresoForm({ monto: '', descripcion: '' });
+    } catch (error) {
+      mostrarMensaje('Error: ' + error.message, 'error');
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   const formatearFechaHora = (fechaStr) => {
     const fecha = new Date(fechaStr);
@@ -1252,6 +1306,68 @@ const KioscoAdmin = () => {
           </div>
         </div>
       )}
+
+      {/* Modal Registrar Egreso */}
+      {modalEgreso && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl animate-scaleIn">
+            <div className="p-8 pb-2 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Registrar egreso</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Retiro de efectivo de caja</p>
+              </div>
+              <button
+                onClick={() => { setModalEgreso(false); setEgresoForm({ monto: '', descripcion: '' }); }}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-8 pt-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Monto (S/)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={egresoForm.monto}
+                  onChange={(e) => setEgresoForm({ ...egresoForm, monto: e.target.value })}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white transition-all"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Descripcion</label>
+                <input
+                  type="text"
+                  value={egresoForm.descripcion}
+                  onChange={(e) => setEgresoForm({ ...egresoForm, descripcion: e.target.value })}
+                  placeholder="Ej: Pago proveedor, cambio, etc."
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 focus:bg-white transition-all"
+                />
+              </div>
+            </div>
+            <div className="p-8 pt-4 flex gap-3 justify-end">
+              <button
+                onClick={() => { setModalEgreso(false); setEgresoForm({ monto: '', descripcion: '' }); }}
+                className="px-6 py-3 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRegistrarEgreso}
+                disabled={guardando}
+                className="px-6 py-3 bg-red-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-red-700 active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {guardando ? 'Registrando...' : 'Registrar egreso'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 
@@ -1288,6 +1404,108 @@ const KioscoAdmin = () => {
             {mensaje.texto}
           </div>
         )}
+
+        {/* Caja del dia - solo admins */}
+        {!empleado && <div className="mb-6">
+          <div
+            className="bg-gray-900 rounded-xl p-4 cursor-pointer transition-all hover:bg-gray-800"
+            onClick={() => setCajaExpandida(!cajaExpandida)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest">Caja de hoy</p>
+                  <p className={`text-2xl font-bold ${saldoCaja >= 0 ? 'text-white' : 'text-red-400'}`}>
+                    S/ {saldoCaja.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right hidden sm:block">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">Efectivo</p>
+                  <p className="text-sm font-semibold text-emerald-400">+ S/ {totalEfectivoHoy.toFixed(2)}</p>
+                </div>
+                {totalEgresosHoy > 0 && (
+                  <div className="text-right hidden sm:block">
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">Egresos</p>
+                    <p className="text-sm font-semibold text-red-400">- S/ {totalEgresosHoy.toFixed(2)}</p>
+                  </div>
+                )}
+                <svg className={`w-5 h-5 text-gray-400 transition-transform ${cajaExpandida ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Detalle expandido */}
+          {cajaExpandida && (
+            <div className="mt-2 bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+              {/* Resumen movil */}
+              <div className="flex gap-3 sm:hidden">
+                <div className="flex-1 bg-emerald-50 rounded-lg p-3">
+                  <p className="text-[10px] text-emerald-600 uppercase tracking-wider">Efectivo</p>
+                  <p className="text-sm font-bold text-emerald-700">+ S/ {totalEfectivoHoy.toFixed(2)}</p>
+                </div>
+                {totalEgresosHoy > 0 && (
+                  <div className="flex-1 bg-red-50 rounded-lg p-3">
+                    <p className="text-[10px] text-red-600 uppercase tracking-wider">Egresos</p>
+                    <p className="text-sm font-bold text-red-700">- S/ {totalEgresosHoy.toFixed(2)}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Lista de egresos de hoy */}
+              {egresosHoy.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Egresos de hoy</p>
+                  <div className="space-y-1.5">
+                    {egresosHoy.map((egreso) => (
+                      <div key={egreso.id} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="text-sm text-gray-700">{egreso.descripcion}</p>
+                          <p className="text-[11px] text-gray-400">
+                            {new Date(egreso.created_at).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-red-600">- S/ {parseFloat(egreso.monto).toFixed(2)}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Eliminar este egreso?')) eliminarEgresoCaja(egreso.id);
+                            }}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Boton registrar egreso */}
+              <button
+                onClick={() => setModalEgreso(true)}
+                className="w-full py-2.5 border border-dashed border-gray-300 text-gray-500 text-sm font-medium rounded-lg hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Registrar egreso
+              </button>
+            </div>
+          )}
+        </div>}
 
         {/* Tabs pill-style */}
         <div className="flex gap-1 bg-gray-100 rounded-full p-1 w-fit mb-8">

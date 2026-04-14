@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   format, addMonths, startOfMonth, endOfMonth,
   startOfWeek, addDays, isSameDay, isSameMonth
@@ -88,58 +88,62 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
   const todosSlots = fecha && cancha ? obtenerTodosSlots() : [];
   const hayAlgunoDisponible = todosSlots.some(s => s.estado === 'disponible');
 
-  const manejarClickSlot = (hora) => {
-    if (!horaInicio) {
-      setHoraInicio(hora);
-      setHoraFin(calcularHoraFinSlot(hora));
-      return;
-    }
+  // Obtener horas de inicio disponibles
+  const horasInicioDisponibles = useMemo(() => {
+    return todosSlots.filter(s => s.estado === 'disponible').map(s => s.hora);
+  }, [todosSlots]);
 
+  // Obtener horas de fin válidas: consecutivas disponibles desde horaInicio
+  const horasFinDisponibles = useMemo(() => {
+    if (!horaInicio || !fecha || !cancha) return [];
     const horarios = generarHorarios();
     const idxInicio = horarios.indexOf(horaInicio);
-    const idxClick = horarios.indexOf(hora);
+    if (idxInicio === -1) return [];
 
-    if (idxClick === idxInicio) {
-      setHoraInicio(null);
-      setHoraFin(null);
-      return;
+    const opciones = [];
+    // El primer fin posible es horaInicio + 1 intervalo
+    opciones.push(calcularHoraFinSlot(horaInicio));
+
+    // Luego extender mientras los slots siguientes estén disponibles
+    for (let i = idxInicio + 1; i < horarios.length; i++) {
+      const slot = horarios[i];
+      if (!verificarDisponibilidad(fecha, slot, cancha.id) || esHoraPasada(fecha, slot)) break;
+      opciones.push(calcularHoraFinSlot(slot));
     }
 
-    if (idxClick > idxInicio) {
-      const slotsEnRango = horarios.slice(idxInicio, idxClick + 1);
-      const todoDisponible = slotsEnRango.every(h =>
-        verificarDisponibilidad(fecha, h, cancha.id) && !esHoraPasada(fecha, h)
-      );
-      if (todoDisponible) {
-        setHoraFin(calcularHoraFinSlot(hora));
-      } else {
-        setHoraInicio(hora);
-        setHoraFin(calcularHoraFinSlot(hora));
-      }
-      return;
-    }
+    return opciones;
+  }, [horaInicio, fecha, cancha, todosSlots]);
 
+  const manejarCambioInicio = (hora) => {
     setHoraInicio(hora);
     setHoraFin(calcularHoraFinSlot(hora));
   };
 
-  const slotEnRango = (hora) => {
-    if (!horaInicio || !horaFin) return false;
-    return hora >= horaInicio && hora < horaFin;
+  const manejarCambioFin = (hora) => {
+    setHoraFin(hora);
   };
 
-  const calcularNumHoras = () => {
+  const calcularMinutos = () => {
     if (!horaInicio || !horaFin) return 0;
     const [hi, mi] = horaInicio.split(':').map(Number);
     const [hf, mf] = horaFin.split(':').map(Number);
-    return Math.max(1, Math.ceil(((hf * 60 + mf) - (hi * 60 + mi)) / 60));
+    return Math.max(configuracion.intervalo, (hf * 60 + mf) - (hi * 60 + mi));
+  };
+
+  const formatearDuracion = () => {
+    const min = calcularMinutos();
+    const horas = Math.floor(min / 60);
+    const minutos = min % 60;
+    if (horas === 0) return `${minutos} min`;
+    if (minutos === 0) return `${horas} hora${horas !== 1 ? 's' : ''}`;
+    return `${horas}h ${minutos}min`;
   };
 
   const calcularPrecio = () => {
     if (!cancha) return 0;
     const esS = esSocio();
     const precioPorHora = esS && cancha.costo_socio ? cancha.costo_socio : cancha.costo_regular;
-    return precioPorHora * Math.max(1, calcularNumHoras());
+    return precioPorHora * (calcularMinutos() / 60);
   };
 
   const avanzar = () => setPaso(p => Math.min(p + 1, PASOS.length - 1));
@@ -207,8 +211,8 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
       };
 
       const reservaCreada = await agregarReserva(nuevaReserva);
-      window.open(url, '_blank');
       if (onReservaCreada) onReservaCreada(reservaCreada);
+      window.location.href = url;
       if (inline) {
         // En modo inline: resetear el wizard para una nueva reserva
         setPaso(0);
@@ -425,47 +429,60 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
                   </div>
                 ) : (
                   <>
-                    <div className="flex flex-wrap gap-2">
-                      {todosSlots.map(({ hora, estado }) => {
-                        const enRango = slotEnRango(hora);
-                        const esDisponible = estado === 'disponible';
-                        return (
-                        <button
-                          key={hora}
-                          disabled={!esDisponible}
-                          onClick={() => esDisponible && manejarClickSlot(hora)}
-                          className={`px-3.5 py-2 text-sm font-medium rounded-lg transition-all ${
-                            enRango
-                              ? 'bg-black text-white shadow-sm active:scale-95'
-                              : estado === 'ocupado'
-                              ? 'bg-gray-100 text-gray-300 cursor-not-allowed line-through'
-                              : estado === 'pasado'
-                              ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
-                              : 'bg-gray-100 hover:bg-gray-200 text-gray-700 active:scale-95'
-                          }`}
-                        >
-                          {hora}
-                        </button>
-                        );
-                      })}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Selector DESDE */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Desde</label>
+                        <div className="space-y-1 max-h-52 overflow-y-auto rounded-xl border border-gray-200 p-1.5">
+                          {horasInicioDisponibles.map(hora => (
+                            <button
+                              key={hora}
+                              onClick={() => manejarCambioInicio(hora)}
+                              className={`w-full px-3 py-2 text-sm font-mono font-medium rounded-lg transition-all text-left ${
+                                horaInicio === hora
+                                  ? 'bg-black text-white'
+                                  : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              {hora}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Selector HASTA */}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Hasta</label>
+                        <div className={`space-y-1 max-h-52 overflow-y-auto rounded-xl border border-gray-200 p-1.5 ${!horaInicio ? 'opacity-40' : ''}`}>
+                          {horaInicio ? horasFinDisponibles.map(hora => (
+                            <button
+                              key={hora}
+                              onClick={() => manejarCambioFin(hora)}
+                              className={`w-full px-3 py-2 text-sm font-mono font-medium rounded-lg transition-all text-left ${
+                                horaFin === hora
+                                  ? 'bg-black text-white'
+                                  : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              {hora}
+                            </button>
+                          )) : (
+                            <p className="text-xs text-gray-400 px-3 py-4 text-center">Selecciona hora de inicio</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
-                    {horaInicio ? (
-                      <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-xl">
-                        <p className="text-sm font-semibold text-black">
-                          {horaInicio} – {horaFin}
-                          <span className="text-gray-500 font-normal ml-2">
-                            ({calcularNumHoras()} hora{calcularNumHoras() !== 1 ? 's' : ''})
-                          </span>
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Click en otro horario para extender el rango
-                        </p>
+                    {horaInicio && horaFin && (
+                      <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-black">
+                            {horaInicio} – {horaFin}
+                          </p>
+                          <p className="text-xs text-gray-500">{formatearDuracion()}</p>
+                        </div>
+                        <p className="text-sm font-bold text-black">S/ {calcularPrecio()}</p>
                       </div>
-                    ) : (
-                      <p className="text-xs text-gray-400 mt-2">
-                        Click en un horario para seleccionarlo, luego en otro para extender
-                      </p>
                     )}
                   </>
                 )}

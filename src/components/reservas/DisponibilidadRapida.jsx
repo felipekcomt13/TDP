@@ -1,5 +1,4 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useReservas } from '../../context/ReservasContext';
 import { useCanchas } from '../../context/CanchasContext';
 
@@ -8,42 +7,58 @@ const formatearFechaCorta = (fecha) => {
   return d.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' });
 };
 
+const formatearFechaMobile = (fecha) => {
+  const d = new Date(fecha + 'T12:00:00');
+  const dia = d.toLocaleDateString('es-PE', { weekday: 'short' }).replace('.', '').toUpperCase();
+  const num = d.getDate();
+  return { dia, num };
+};
+
 const formatearHora = (hora) => {
   const [h] = hora.split(':').map(Number);
   if (h >= 24) return `${(h - 24).toString().padStart(2, '0')}:00`;
   return hora;
 };
 
-const DisponibilidadRapida = () => {
-  const navigate = useNavigate();
-  const { verificarDisponibilidad, generarHorarios } = useReservas();
+const formatearRango = (hora, intervalo) => {
+  const [h, m] = hora.split(':').map(Number);
+  const inicio = formatearHora(hora);
+  let finH = h, finM = m + intervalo;
+  if (finM >= 60) { finH += Math.floor(finM / 60); finM = finM % 60; }
+  const finHora = finH >= 24 ? finH - 24 : finH;
+  const fin = `${finHora.toString().padStart(2, '0')}:${finM.toString().padStart(2, '0')}`;
+  return `${inicio} - ${fin}`;
+};
+
+const DisponibilidadRapida = ({ onSeleccionarSlot }) => {
+  const { verificarDisponibilidad, generarHorarios, configuracion } = useReservas();
   const { canchas } = useCanchas();
 
   const hoy = new Date();
   const hoyStr = `${hoy.getFullYear()}-${(hoy.getMonth() + 1).toString().padStart(2, '0')}-${hoy.getDate().toString().padStart(2, '0')}`;
   const [fecha, setFecha] = useState(hoyStr);
+  const [deporte, setDeporte] = useState('voley');
   const [canchaMovil, setCanchaMovil] = useState(0);
 
-  const canchasDisponibles = canchas.filter(c => c.estado === 'disponible');
+  const canchasDisponibles = canchas.filter(c => c.estado === 'disponible' && (c.deportes || []).includes(deporte));
   const horarios = useMemo(() => generarHorarios(), [generarHorarios]);
 
-  // Hora actual para marcar slots pasados
   const horaActualNum = hoy.getHours() * 60 + hoy.getMinutes();
   const esHoy = fecha === hoyStr;
 
   const esHoraPasada = (hora) => {
     if (!esHoy) return false;
     const [h, m] = hora.split(':').map(Number);
-    // Para horas >= 24 (ej: 25:00 = 1am del día siguiente), nunca son pasadas "hoy"
     if (h >= 24) return false;
     return (h * 60 + m) < horaActualNum;
   };
 
-  const handleClickSlot = (cancha, hora) => {
-    navigate(`/reservas?cancha=${cancha.id}&fecha=${fecha}&hora=${hora}`);
+  const handleClickSlot = () => {
+    if (onSeleccionarSlot) {
+      onSeleccionarSlot();
+    }
   };
 
-  // Generar fechas: hoy + 6 dias
   const fechas = useMemo(() => {
     const arr = [];
     for (let i = 0; i < 7; i++) {
@@ -55,42 +70,168 @@ const DisponibilidadRapida = () => {
     return arr;
   }, []);
 
+  const slotMatrix = useMemo(() => {
+    return horarios.map(hora => ({
+      hora,
+      canchas: canchasDisponibles.map(cancha => ({
+        canchaId: cancha.id,
+        disponible: !esHoraPasada(hora) && verificarDisponibilidad(fecha, hora, cancha.id),
+        pasada: esHoraPasada(hora),
+      }))
+    }));
+  }, [horarios, fecha, canchasDisponibles, verificarDisponibilidad]);
+
+  // Auto-scroll al primer slot libre en mobile
+  const primerLibreRef = useRef(null);
+  useEffect(() => {
+    if (primerLibreRef.current) {
+      primerLibreRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [fecha, canchaMovil]);
+
+  let primerLibreEncontrado = false;
+
   return (
-    <div className="px-6 lg:px-8 py-16 md:py-20">
+    <div className="px-4 sm:px-6 lg:px-8 py-10 sm:py-16 md:py-20">
       <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-10">
-          <h2 className="text-4xl font-bold text-black mb-4 tracking-tight">
+        <div className="text-center mb-6 sm:mb-10">
+          <h2 className="text-2xl sm:text-4xl font-bold text-black mb-2 sm:mb-4 tracking-tight">
             DISPONIBILIDAD
           </h2>
-          <p className="text-gray-600 text-sm uppercase tracking-wide">
-            Horarios disponibles en tiempo real
+          <p className="text-gray-600 text-[11px] sm:text-sm uppercase tracking-wide">
+            Horarios en tiempo real — toca un horario libre para reservar
           </p>
         </div>
 
-        {/* Selector de fecha */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-8 scrollbar-hide justify-center">
-          {fechas.map((f) => (
+        {/* Selector de deporte */}
+        <div className="flex gap-2 justify-center mb-4 sm:mb-6">
+          {[
+            { id: 'voley', label: 'VOLEY' },
+            { id: 'basket', label: 'BASKET' },
+          ].map((d) => (
             <button
-              key={f}
-              onClick={() => setFecha(f)}
-              className={`flex-shrink-0 px-4 py-2.5 text-xs font-medium rounded-lg transition-all capitalize ${
-                fecha === f
+              key={d.id}
+              onClick={() => { setDeporte(d.id); setCanchaMovil(0); }}
+              className={`px-5 sm:px-6 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+                deporte === d.id
                   ? 'bg-black text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
               }`}
             >
-              {f === hoyStr ? 'Hoy' : formatearFechaCorta(f)}
+              {d.label}
             </button>
           ))}
         </div>
 
-        {/* Tabs de cancha en movil */}
-        <div className="md:hidden flex gap-1 mb-6 border-b border-gray-200">
+        {/* Selector de fecha */}
+        <div className="grid grid-cols-7 gap-1.5 sm:flex sm:gap-2 sm:justify-center mb-4 sm:mb-6">
+          {fechas.map((f) => {
+            const mobile = formatearFechaMobile(f);
+            const esHoyChip = f === hoyStr;
+            return (
+              <button
+                key={f}
+                onClick={() => setFecha(f)}
+                className={`sm:flex-shrink-0 sm:px-4 py-1.5 sm:py-2.5 text-xs font-medium rounded-lg transition-all text-center ${
+                  fecha === f
+                    ? 'bg-black text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {/* Mobile: vertical compacto */}
+                <span className="sm:hidden flex flex-col items-center gap-0.5">
+                  <span className="text-[9px] font-medium tracking-wide uppercase">{esHoyChip ? 'HOY' : mobile.dia}</span>
+                  <span className="text-sm font-bold leading-none">{mobile.num}</span>
+                </span>
+                {/* Desktop: texto completo */}
+                <span className="hidden sm:inline capitalize">
+                  {esHoyChip ? 'Hoy' : formatearFechaCorta(f)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Leyenda */}
+        <div className="flex items-center justify-center gap-4 sm:gap-6 mb-5 sm:mb-8 text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm bg-white border border-gray-300" />
+            <span>Libre</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm bg-black" />
+            <span>Ocupado</span>
+          </div>
+          {esHoy && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm bg-gray-200" />
+              <span>Pasado</span>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop: Tabla horas x canchas */}
+        <div className="hidden lg:block overflow-hidden rounded-xl border border-gray-200">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="w-32 p-2.5 text-[10px] uppercase tracking-wider text-gray-400 font-medium">
+                  Hora
+                </th>
+                {canchasDisponibles.map(c => (
+                  <th key={c.id} className="p-2.5 text-xs font-bold uppercase tracking-wide text-black">
+                    {c.nombre.replace('Cancha ', '')}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {slotMatrix.map(row => (
+                <tr key={row.hora} className="border-b border-gray-100 last:border-b-0">
+                  <td className="p-2 text-xs font-mono text-gray-400 text-center whitespace-nowrap bg-gray-50">
+                    {formatearRango(row.hora, configuracion.intervalo)}
+                  </td>
+                  {row.canchas.map((cell, idx) => {
+                    const cancha = canchasDisponibles[idx];
+                    if (cell.pasada) {
+                      return (
+                        <td key={cancha.id} className="p-1.5 text-center bg-gray-100 text-gray-300 text-[11px]">
+                          ---
+                        </td>
+                      );
+                    }
+                    if (cell.disponible) {
+                      return (
+                        <td
+                          key={cancha.id}
+                          onClick={handleClickSlot}
+                          className="p-1.5 text-center bg-white text-gray-600 text-xs cursor-pointer hover:bg-gray-50 hover:ring-1 hover:ring-inset hover:ring-black transition-all group"
+                        >
+                          <span className="font-medium text-gray-500 group-hover:text-black">
+                            Libre
+                          </span>
+                        </td>
+                      );
+                    }
+                    return (
+                      <td key={cancha.id} className="p-1.5 text-center bg-black text-white text-[11px]">
+                        <span className="font-medium tracking-wide">Ocupado</span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile/Tablet: tabs de cancha */}
+        <div className="lg:hidden flex gap-1 mb-4 sm:mb-6 border-b border-gray-200">
           {canchasDisponibles.map((cancha, idx) => (
             <button
               key={cancha.id}
-              onClick={() => setCanchaMovil(idx)}
-              className={`flex-1 px-3 py-2.5 text-xs font-medium transition-colors relative ${
+              onClick={() => { setCanchaMovil(idx); primerLibreEncontrado = false; }}
+              className={`flex-1 px-2 sm:px-3 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium transition-colors relative ${
                 canchaMovil === idx
                   ? 'text-black'
                   : 'text-gray-400'
@@ -104,63 +245,36 @@ const DisponibilidadRapida = () => {
           ))}
         </div>
 
-        {/* Grid desktop: 3 columnas */}
-        <div className="hidden md:grid md:grid-cols-3 gap-4">
-          {canchasDisponibles.map((cancha) => (
-            <CanchaColumna
-              key={cancha.id}
-              cancha={cancha}
-              horarios={horarios}
-              fecha={fecha}
-              verificarDisponibilidad={verificarDisponibilidad}
-              esHoraPasada={esHoraPasada}
-              onClickSlot={handleClickSlot}
-            />
-          ))}
+        {/* Mobile/Tablet: lista vertical completa */}
+        <div className="lg:hidden space-y-1 sm:space-y-1.5">
+          {slotMatrix.map(row => {
+            const cell = row.canchas[canchaMovil];
+            if (!cell) return null;
+
+            const esPrimerLibre = cell.disponible && !primerLibreEncontrado;
+            if (esPrimerLibre) primerLibreEncontrado = true;
+
+            return (
+              <div
+                key={row.hora}
+                ref={esPrimerLibre ? primerLibreRef : null}
+                onClick={() => cell.disponible ? handleClickSlot() : null}
+                className={`flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-[11px] sm:text-xs font-medium transition-all ${
+                  cell.pasada
+                    ? 'bg-gray-100 text-gray-300'
+                    : cell.disponible
+                      ? 'bg-white border border-gray-200 text-gray-700 active:scale-[0.98] cursor-pointer hover:border-black'
+                      : 'bg-black text-white'
+                }`}
+              >
+                <span className="font-mono">{formatearRango(row.hora, configuracion.intervalo)}</span>
+                <span className="uppercase tracking-wider">
+                  {cell.pasada ? '---' : cell.disponible ? 'Libre' : 'Ocupado'}
+                </span>
+              </div>
+            );
+          })}
         </div>
-
-        {/* Vista movil: solo cancha seleccionada */}
-        <div className="md:hidden">
-          {canchasDisponibles[canchaMovil] && (
-            <CanchaColumna
-              cancha={canchasDisponibles[canchaMovil]}
-              horarios={horarios}
-              fecha={fecha}
-              verificarDisponibilidad={verificarDisponibilidad}
-              esHoraPasada={esHoraPasada}
-              onClickSlot={handleClickSlot}
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const CanchaColumna = ({ cancha, horarios, fecha, verificarDisponibilidad, esHoraPasada, onClickSlot }) => {
-  return (
-    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-      <h3 className="text-sm font-bold text-black tracking-tight mb-4 text-center uppercase">
-        {cancha.nombre}
-      </h3>
-      <div className="space-y-1.5">
-        {horarios.map((hora) => {
-          const pasada = esHoraPasada(hora);
-          const disponible = !pasada && verificarDisponibilidad(fecha, hora, cancha.id);
-
-          if (!disponible) return null;
-
-          return (
-            <button
-              key={hora}
-              onClick={() => onClickSlot(cancha, hora)}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:shadow-sm cursor-pointer"
-            >
-              <span className="font-mono">{formatearHora(hora)}</span>
-              <span>Libre</span>
-            </button>
-          );
-        })}
       </div>
     </div>
   );

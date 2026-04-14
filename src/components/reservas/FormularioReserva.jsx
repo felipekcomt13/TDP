@@ -171,8 +171,8 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
         onReservaCreada(reservaCreada);
       }
 
-      // Abrir WhatsApp al instante (acción de usuario, no bloqueado por el navegador)
-      window.open(url, '_blank');
+      // Redirigir a WhatsApp
+      window.location.href = url;
 
       setLoading(false);
       onCerrar();
