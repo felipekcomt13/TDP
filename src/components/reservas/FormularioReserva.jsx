@@ -186,7 +186,7 @@ const FormularioReserva = ({ horarioSeleccionado, onCerrar, onReservaCreada }) =
 
   // Calcular precio total según cancha y tipo de usuario
   const cancha = horarioSeleccionado.cancha || 'principal';
-  const desglose = obtenerDesglosePrecio(cancha, horarioSeleccionado.horaInicio, horarioSeleccionado.horaFin);
+  const desglose = obtenerDesglosePrecio(cancha, horarioSeleccionado.horaInicio, horarioSeleccionado.horaFin, horarioSeleccionado.deporte);
   const costoTotal = desglose.precioTotal;
   const nombreCancha = obtenerNombreCancha(cancha);
   const tipoHorario = obtenerTipoHorario();

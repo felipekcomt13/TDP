@@ -122,8 +122,8 @@ const ListaReservas = () => {
             const esPasada = fechaReserva < fechaActual;
             const esPendiente = reserva.estado === 'pendiente';
             const cancha = reserva.cancha || 'principal';
-            const precio = calcularPrecioReserva(cancha, reserva.hora, reserva.horaFin);
-            const desglose = reserva.horaFin ? obtenerDesglosePrecio(cancha, reserva.hora, reserva.horaFin) : null;
+            const precio = calcularPrecioReserva(cancha, reserva.hora, reserva.horaFin, reserva.deporte);
+            const desglose = reserva.horaFin ? obtenerDesglosePrecio(cancha, reserva.hora, reserva.horaFin, reserva.deporte) : null;
 
             return (
               <div

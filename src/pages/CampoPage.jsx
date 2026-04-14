@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import logo from '../assets/images/logo.png';
 import { useAuth } from '../context/AuthContext';
-import { PRECIOS } from '../utils/preciosCalculator';
+import { TARIFAS } from '../utils/preciosCalculator';
 import BannerLibroReclamaciones from '../components/shared/BannerLibroReclamaciones';
 
 const CampoPage = () => {
@@ -352,15 +352,27 @@ const CampoPage = () => {
               </thead>
               <tbody>
                 <tr className="border-b border-gray-100">
-                  <td className="py-2 pr-3 font-semibold text-gray-800">Principal</td>
+                  <td className="py-2 pr-3 font-semibold text-gray-800">Voley (dia)</td>
                   <td className="text-center py-2 px-2 font-bold text-black">
-                    S/{PRECIOS.PRINCIPAL.NO_SOCIO}
+                    S/{TARIFAS.voley.dia.base}/h
+                  </td>
+                </tr>
+                <tr className="border-b border-gray-100">
+                  <td className="py-2 pr-3 font-semibold text-gray-800">Voley (noche)</td>
+                  <td className="text-center py-2 px-2 font-bold text-black">
+                    S/{TARIFAS.voley.noche.base}/h
+                  </td>
+                </tr>
+                <tr className="border-b border-gray-100">
+                  <td className="py-2 pr-3 font-semibold text-gray-800">Basket (dia)</td>
+                  <td className="text-center py-2 px-2 font-bold text-black">
+                    S/{TARIFAS.basket.dia.base}/h
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-2 pr-3 font-semibold text-gray-800">Anexas</td>
+                  <td className="py-2 pr-3 font-semibold text-gray-800">Basket (noche)</td>
                   <td className="text-center py-2 px-2 font-bold text-black">
-                    S/{PRECIOS.ANEXA.NO_SOCIO}
+                    S/{TARIFAS.basket.noche.base}/h
                   </td>
                 </tr>
               </tbody>
@@ -491,20 +503,16 @@ const CampoPage = () => {
                 Tarifas/hora
               </h3>
 
-              {/* Card: Cancha Principal */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <h4 className="font-bold text-sm text-black mb-2">Cancha Principal</h4>
-                <p className="text-lg font-bold text-black">
-                  S/{PRECIOS.PRINCIPAL.NO_SOCIO}<span className="text-xs font-normal text-gray-500">/h</span>
-                </p>
+                <h4 className="font-bold text-sm text-black mb-2">Voley</h4>
+                <p className="text-sm text-gray-600">Dia: <span className="font-bold text-black">S/{TARIFAS.voley.dia.base}</span>/h · desde 2h: <span className="font-bold text-black">S/{TARIFAS.voley.dia.desde2h}</span>/h</p>
+                <p className="text-sm text-gray-600">Noche: <span className="font-bold text-black">S/{TARIFAS.voley.noche.base}</span>/h · desde 2h: <span className="font-bold text-black">S/{TARIFAS.voley.noche.desde2h}</span>/h</p>
               </div>
 
-              {/* Card: Canchas Anexas */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <h4 className="font-bold text-sm text-black mb-2">Canchas Anexas</h4>
-                <p className="text-lg font-bold text-black">
-                  S/{PRECIOS.ANEXA.NO_SOCIO}<span className="text-xs font-normal text-gray-500">/h</span>
-                </p>
+                <h4 className="font-bold text-sm text-black mb-2">Basket</h4>
+                <p className="text-sm text-gray-600">Dia: <span className="font-bold text-black">S/{TARIFAS.basket.dia.base}</span>/h</p>
+                <p className="text-sm text-gray-600">Noche: <span className="font-bold text-black">S/{TARIFAS.basket.noche.base}</span>/h</p>
               </div>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { es } from 'date-fns/locale';
 import { useReservas } from '../../context/ReservasContext';
 import { useAuth } from '../../context/AuthContext';
 import { useCanchas } from '../../context/CanchasContext';
+import { calcularPrecioReserva, obtenerDesglosePrecio } from '../../utils/preciosCalculator';
 
 const PASOS = ['Deporte', 'Cancha', 'Horario', 'Confirmar'];
 const FECHA_INICIO_RESERVAS = new Date(2026, 2, 4); // 4 marzo 2026
@@ -140,9 +141,13 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
   };
 
   const calcularPrecio = () => {
-    if (!cancha) return 0;
-    const precioPorHora = cancha.costo_regular;
-    return precioPorHora * (calcularMinutos() / 60);
+    if (!cancha || !horaInicio || !horaFin) return 0;
+    return calcularPrecioReserva(cancha.id, horaInicio, horaFin, deporte);
+  };
+
+  const obtenerDesglose = () => {
+    if (!cancha || !horaInicio || !horaFin) return null;
+    return obtenerDesglosePrecio(cancha.id, horaInicio, horaFin, deporte);
   };
 
   const avanzar = () => setPaso(p => Math.min(p + 1, PASOS.length - 1));
@@ -374,10 +379,8 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-base text-black">{c.nombre}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm text-gray-500">
-                          S/ {c.costo_regular}/hora
-                        </span>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Desde S/ {deporte === 'basket' ? '35' : '25'}/hora
                       </div>
                     </div>
                     <svg className="w-5 h-5 text-gray-300 group-hover:text-black transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -467,17 +470,20 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
                       </div>
                     </div>
 
-                    {horaInicio && horaFin && (
-                      <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-black">
-                            {horaInicio} – {horaFin}
-                          </p>
-                          <p className="text-xs text-gray-500">{formatearDuracion()}</p>
+                    {horaInicio && horaFin && (() => {
+                      const desg = obtenerDesglose();
+                      return (
+                        <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-black">
+                              {horaInicio} – {horaFin}
+                            </p>
+                            <p className="text-xs text-gray-500">{formatearDuracion()}{desg ? ` — ${desg.desglose}` : ''}</p>
+                          </div>
+                          <p className="text-sm font-bold text-black">S/ {calcularPrecio()}</p>
                         </div>
-                        <p className="text-sm font-bold text-black">S/ {calcularPrecio()}</p>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </>
                 )}
               </div>
