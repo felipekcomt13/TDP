@@ -70,16 +70,63 @@ const DisponibilidadRapida = ({ onSeleccionarSlot }) => {
     return arr;
   }, []);
 
-  const slotMatrix = useMemo(() => {
+  // Generar estado de cada slot de 30 min
+  const slotsBrutos = useMemo(() => {
     return horarios.map(hora => ({
       hora,
-      canchas: canchasDisponibles.map(cancha => ({
-        canchaId: cancha.id,
-        disponible: !esHoraPasada(hora) && verificarDisponibilidad(fecha, hora, cancha.id),
-        pasada: esHoraPasada(hora),
-      }))
+      canchas: canchasDisponibles.map(cancha => {
+        const pasada = esHoraPasada(hora);
+        return {
+          canchaId: cancha.id,
+          disponible: !pasada && verificarDisponibilidad(fecha, hora, cancha.id),
+          pasada,
+        };
+      })
     }));
   }, [horarios, fecha, canchasDisponibles, verificarDisponibilidad]);
+
+  // Agrupar en bloques de 1h cuando ambas mitades tienen el mismo estado en todas las canchas
+  const slotMatrix = useMemo(() => {
+    const resultado = [];
+    let i = 0;
+    while (i < slotsBrutos.length) {
+      const actual = slotsBrutos[i];
+      const siguiente = slotsBrutos[i + 1];
+
+      // Verificar si se puede agrupar: debe existir siguiente slot y ser la otra mitad de la misma hora
+      const [hA, mA] = actual.hora.split(':').map(Number);
+      let puedeMerge = false;
+
+      if (siguiente && mA % 60 === 0) {
+        const [hS, mS] = siguiente.hora.split(':').map(Number);
+        // Solo merge si es XX:00 + XX:30 de la misma hora
+        if (hS === hA && mS === 30) {
+          // Verificar que todas las canchas tengan el mismo estado en ambas mitades
+          puedeMerge = actual.canchas.every((c, idx) => {
+            const s = siguiente.canchas[idx];
+            return c.disponible === s.disponible && c.pasada === s.pasada;
+          });
+        }
+      }
+
+      if (puedeMerge) {
+        resultado.push({
+          hora: actual.hora,
+          duracion: 60,
+          canchas: actual.canchas,
+        });
+        i += 2;
+      } else {
+        resultado.push({
+          hora: actual.hora,
+          duracion: 30,
+          canchas: actual.canchas,
+        });
+        i += 1;
+      }
+    }
+    return resultado;
+  }, [slotsBrutos]);
 
   // Auto-scroll al primer slot libre en mobile
   const primerLibreRef = useRef(null);
@@ -189,7 +236,7 @@ const DisponibilidadRapida = ({ onSeleccionarSlot }) => {
               {slotMatrix.map(row => (
                 <tr key={row.hora} className="border-b border-gray-100 last:border-b-0">
                   <td className="p-2 text-xs font-mono text-gray-400 text-center whitespace-nowrap bg-gray-50">
-                    {formatearRango(row.hora, configuracion.intervalo)}
+                    {formatearRango(row.hora, row.duracion)}
                   </td>
                   {row.canchas.map((cell, idx) => {
                     const cancha = canchasDisponibles[idx];
@@ -267,7 +314,7 @@ const DisponibilidadRapida = ({ onSeleccionarSlot }) => {
                       : 'bg-black text-white'
                 }`}
               >
-                <span className="font-mono">{formatearRango(row.hora, configuracion.intervalo)}</span>
+                <span className="font-mono">{formatearRango(row.hora, row.duracion)}</span>
                 <span className="uppercase tracking-wider">
                   {cell.pasada ? '---' : cell.disponible ? 'Libre' : 'Ocupado'}
                 </span>
