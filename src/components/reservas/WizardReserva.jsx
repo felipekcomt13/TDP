@@ -36,15 +36,21 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
   const { user, profile, esSocio } = useAuth();
   const { obtenerCanchasPorDeporte } = useCanchas();
 
+  // Precarga nombre/email del perfil solo una vez, sin pisar lo que el usuario
+  // ya haya escrito. Usamos valores primitivos como dependencias (no los objetos
+  // user/profile completos) porque Supabase re-emite esos objetos cada vez que
+  // revalida la sesión (p. ej. al volver de otra app), lo que antes reescribía
+  // el campo "Nombre" encima de lo que el usuario había tecleado.
   useEffect(() => {
     if (user && profile) {
       setFormData(prev => ({
         ...prev,
-        nombre: profile.nombre || '',
-        email: user.email || ''
+        nombre: prev.nombre || profile.nombre || '',
+        email: prev.email || user.email || ''
       }));
     }
-  }, [user, profile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps a propósito en primitivos, no en los objetos user/profile (ver comentario arriba)
+  }, [user?.id, user?.email, profile?.nombre]);
 
   // Scroll automático a los horarios al seleccionar fecha (útil en móvil)
   useEffect(() => {
@@ -542,6 +548,7 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
                     type="text"
                     value={formData.nombre}
                     onChange={e => setFormData(p => ({ ...p, nombre: e.target.value }))}
+                    autoComplete="off"
                     className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 text-sm"
                     placeholder="Juan Pérez"
                   />
