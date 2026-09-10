@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   format, addMonths, startOfMonth, endOfMonth,
   startOfWeek, addDays, isSameDay, isSameMonth
@@ -55,14 +55,14 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
     }
   }, [fecha]);
 
-  const calcularHoraFinSlot = (hora) => {
+  const calcularHoraFinSlot = useCallback((hora) => {
     const [h, m] = hora.split(':').map(Number);
     let nh = h, nm = m + configuracion.intervalo;
     if (nm >= 60) { nh += Math.floor(nm / 60); nm = nm % 60; }
     return `${nh.toString().padStart(2, '0')}:${nm.toString().padStart(2, '0')}`;
-  };
+  }, [configuracion.intervalo]);
 
-  const esHoraPasada = (fechaStr, hora) => {
+  const esHoraPasada = useCallback((fechaStr, hora) => {
     const fechaDate = new Date(fechaStr + 'T00:00:00');
     if (fechaDate < FECHA_INICIO_RESERVAS) return true;
     const hoy = new Date();
@@ -74,19 +74,21 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
       return hf < hoy.getHours() || (hf === hoy.getHours() && mf <= hoy.getMinutes());
     }
     return false;
-  };
+  }, [calcularHoraFinSlot]);
 
   // Retorna todos los slots con su estado: 'disponible' | 'ocupado' | 'pasado'
-  const obtenerTodosSlots = () => {
+  // Memoizado: escanea todas las reservas, así que no debe recalcularse en cada
+  // tecla que se escribe en el formulario (paso 3), solo cuando cambia la fecha,
+  // la cancha o la lista de reservas.
+  const todosSlots = useMemo(() => {
     if (!fecha || !cancha) return [];
     return generarHorarios().map(hora => {
       if (esHoraPasada(fecha, hora)) return { hora, estado: 'pasado' };
       if (!verificarDisponibilidad(fecha, hora, cancha.id)) return { hora, estado: 'ocupado' };
       return { hora, estado: 'disponible' };
     });
-  };
+  }, [fecha, cancha, verificarDisponibilidad, generarHorarios, esHoraPasada]);
 
-  const todosSlots = fecha && cancha ? obtenerTodosSlots() : [];
   const hayAlgunoDisponible = todosSlots.some(s => s.estado === 'disponible');
 
   // Obtener horas de inicio disponibles
@@ -113,7 +115,7 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
     }
 
     return opciones;
-  }, [horaInicio, fecha, cancha, todosSlots]);
+  }, [horaInicio, fecha, cancha, generarHorarios, calcularHoraFinSlot, verificarDisponibilidad, esHoraPasada]);
 
   const manejarCambioInicio = (hora) => {
     setHoraInicio(hora);
