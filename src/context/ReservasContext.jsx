@@ -43,12 +43,26 @@ export const ReservasProvider = ({ children }) => {
     try {
       // Cargar TODAS las reservas para mostrar en el calendario
       // Las políticas RLS de Supabase manejarán los permisos
-      const { data, error } = await supabase
-        .from('reservas')
-        .select('*')
-        .order('fecha', { ascending: true });
+      // Nota: Supabase limita cada respuesta a 1000 filas, así que paginamos
+      // con .range() para traer la tabla completa sin cortar las reservas más recientes
+      const data = [];
+      const PAGE_SIZE = 1000;
+      let pagina = 0;
+      while (true) {
+        const desde = pagina * PAGE_SIZE;
+        const hasta = desde + PAGE_SIZE - 1;
+        const { data: lote, error } = await supabase
+          .from('reservas')
+          .select('*')
+          .order('fecha', { ascending: true })
+          .range(desde, hasta);
 
-      if (error) throw error;
+        if (error) throw error;
+        data.push(...lote);
+
+        if (lote.length < PAGE_SIZE) break;
+        pagina += 1;
+      }
 
       // Convertir de snake_case a camelCase para compatibilidad
       const reservasFormateadas = data.map(r => ({
