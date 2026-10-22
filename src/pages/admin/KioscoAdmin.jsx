@@ -3,8 +3,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useKiosco } from '../../context/KioscoContext';
 import { useCuentas, CUENTAS } from '../../context/CuentasContext';
-import { useReservas } from '../../context/ReservasContext';
-import { calcularPrecioReserva } from '../../utils/preciosCalculator';
 
 const formInicial = {
   nombre: '',
@@ -17,7 +15,6 @@ const formInicial = {
 const KioscoAdmin = () => {
   const { isAdmin, isEmpleado } = useAuth();
   const navigate = useNavigate();
-  const { reservas } = useReservas();
   const {
     productos,
     ventas,
@@ -412,7 +409,7 @@ const KioscoAdmin = () => {
     return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
   })();
 
-  const totalEfectivoKioscoHoy = ventas
+  const totalEfectivoHoy = ventas
     .filter(v => {
       if (v.tipo_pago !== 'efectivo') return false;
       const f = new Date(v.created_at);
@@ -420,15 +417,6 @@ const KioscoAdmin = () => {
       return fStr === hoyStr;
     })
     .reduce((sum, v) => sum + parseFloat(v.precio_venta) * v.cantidad, 0);
-
-  // Alquiler de canchas pagado en efectivo y confirmado hoy. `montoTotal` es
-  // el precio congelado al crear la reserva (ver migration-monto-reservas.sql);
-  // si una reserva antigua no lo tiene, se recalcula con la tarifa vigente.
-  const totalEfectivoCanchasHoy = reservas
-    .filter(r => r.estado === 'confirmada' && r.tipoPago === 'efectivo' && r.fecha === hoyStr)
-    .reduce((sum, r) => sum + (r.montoTotal ?? calcularPrecioReserva(r.cancha || 'principal', r.hora, r.horaFin, r.deporte)), 0);
-
-  const totalEfectivoHoy = totalEfectivoKioscoHoy + totalEfectivoCanchasHoy;
 
   const egresosHoy = egresosCaja.filter(e => {
     const f = new Date(e.created_at);
@@ -1470,12 +1458,6 @@ const KioscoAdmin = () => {
                     <p className="text-sm font-bold text-red-700">- S/ {totalEgresosHoy.toFixed(2)}</p>
                   </div>
                 )}
-              </div>
-
-              {/* Desglose del efectivo por origen */}
-              <div className="flex items-center gap-4 text-xs text-gray-500 px-1">
-                <span>Kiosco: <span className="font-semibold text-gray-700">S/ {totalEfectivoKioscoHoy.toFixed(2)}</span></span>
-                <span>Canchas: <span className="font-semibold text-gray-700">S/ {totalEfectivoCanchasHoy.toFixed(2)}</span></span>
               </div>
 
               {/* Lista de egresos de hoy */}
