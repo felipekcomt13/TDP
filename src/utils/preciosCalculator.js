@@ -1,35 +1,51 @@
 /**
- * Precios por deporte y franja horaria
+ * Tarifa de alquiler de cancha
  *
- * BASKET:
- *   Día (antes de 17:00): S/35/h
- *   Noche (17:00+):       S/50/h
+ * Tarifa única: ya no distingue basket de vóley (antes sí lo hacía).
  *
- * VOLEY:
- *   Día (antes de 17:00): S/30/h | desde 2h: S/25/h
- *   Noche (17:00+):       S/50/h | desde 2h: S/40/h
+ *   Turno día   (antes de las 18:00): 1h = S/35 | 1.5h = S/50 | 2h = S/65
+ *   Turno noche (18:00 en adelante):  1h = S/60 | 1.5h = S/75 | 2h = S/90
+ *
+ * En ambos turnos cada media hora adicional a la primera hora cuesta
+ * exactamente S/15 más (35→50→65 y 60→75→90). Eso permite modelar el precio
+ * como "primer bloque de 30 min" + "S/15 por cada bloque de 30 min extra",
+ * lo que reproduce la tabla exacta de arriba y además se extiende de forma
+ * razonable a duraciones que el negocio no cotizó explícitamente:
+ *   - Menos de 1 hora (ej. 30 min sueltos): un bloque menos que 1h, mismo
+ *     salto de S/15 hacia abajo (S/20 día, S/45 noche).
+ *   - Más de 2 horas: se sigue sumando S/15 por cada media hora extra.
+ *
+ * El turno de toda la reserva lo determina la hora en que EMPIEZA (si
+ * alguien reserva de 17:30 a 19:00, paga turno día completo) — es la regla
+ * más simple y predecible para el cliente.
  */
 
-const LIMITE_NOCHE = 17; // 5pm
+const INICIO_TURNO_NOCHE = 18; // 6:00 pm
 
+const PRIMER_BLOQUE = { dia: 20, noche: 45 }; // precio de los primeros 30 min
+const BLOQUE_ADICIONAL = 15; // precio de cada bloque de 30 min extra, en ambos turnos
+
+// Tabla de referencia para mostrar en pantalla (p. ej. CampoPage), derivada
+// de las mismas constantes que usa el cálculo real para que nunca se desincronicen.
 export const TARIFAS = {
-  basket: {
-    dia: { base: 35 },
-    noche: { base: 50 },
+  dia: {
+    '1h': PRIMER_BLOQUE.dia + BLOQUE_ADICIONAL,
+    '1.5h': PRIMER_BLOQUE.dia + BLOQUE_ADICIONAL * 2,
+    '2h': PRIMER_BLOQUE.dia + BLOQUE_ADICIONAL * 3,
   },
-  voley: {
-    dia: { base: 30, desde2h: 25 },
-    noche: { base: 50, desde2h: 40 },
+  noche: {
+    '1h': PRIMER_BLOQUE.noche + BLOQUE_ADICIONAL,
+    '1.5h': PRIMER_BLOQUE.noche + BLOQUE_ADICIONAL * 2,
+    '2h': PRIMER_BLOQUE.noche + BLOQUE_ADICIONAL * 3,
   },
 };
 
 /**
- * Obtiene la tarifa por hora de un slot de 30 min según deporte y hora
+ * Determina el turno (dia/noche) a partir de una hora 'HH:MM'
  */
-const tarifaSlot = (deporte, hora) => {
+const obtenerTurno = (hora) => {
   const [h] = hora.split(':').map(Number);
-  const config = TARIFAS[deporte] || TARIFAS.voley;
-  return h < LIMITE_NOCHE ? config.dia : config.noche;
+  return h >= INICIO_TURNO_NOCHE ? 'noche' : 'dia';
 };
 
 /**
@@ -49,10 +65,19 @@ const generarSlots = (horaInicio, horaFin) => {
   return slots;
 };
 
+const calcularTotal = (horaInicio, numSlots) => {
+  if (numSlots <= 0) return 0;
+  const turno = obtenerTurno(horaInicio);
+  const total = PRIMER_BLOQUE[turno] + (numSlots - 1) * BLOQUE_ADICIONAL;
+  return { total: Math.round(total * 100) / 100, turno };
+};
+
 /**
- * Calcula el precio total de una reserva
+ * Calcula el precio total de una reserva.
+ * `cancha` y `deporte` ya no afectan el precio (tarifa única); se
+ * mantienen en la firma para no romper a quienes ya llaman esta función.
  */
-export const calcularPrecioReserva = (cancha, horaInicio, horaFin = null, deporte = 'voley') => {
+export const calcularPrecioReserva = (cancha, horaInicio, horaFin = null) => {
   if (!horaInicio) return 0;
   if (!horaFin) {
     // 1 hora por defecto
@@ -61,55 +86,39 @@ export const calcularPrecioReserva = (cancha, horaInicio, horaFin = null, deport
   }
 
   const slots = generarSlots(horaInicio, horaFin);
-  const totalMinutos = slots.length * 30;
-  const totalHoras = totalMinutos / 60;
-  const tiene2hOMas = totalHoras >= 2;
-
-  let total = 0;
-  for (const slot of slots) {
-    const franja = tarifaSlot(deporte, slot);
-    const tarifa = tiene2hOMas && franja.desde2h ? franja.desde2h : franja.base;
-    total += tarifa * 0.5; // cada slot es media hora
-  }
-
-  return Math.round(total * 100) / 100;
+  const { total } = calcularTotal(horaInicio, slots.length);
+  return total;
 };
 
 /**
  * Obtiene desglose detallado del precio
  */
-export const obtenerDesglosePrecio = (cancha, horaInicio, horaFin = null, deporte = 'voley') => {
-  if (!horaInicio) return { precioTotal: 0, desglose: '', lineas: [] };
+export const obtenerDesglosePrecio = (cancha, horaInicio, horaFin = null) => {
+  if (!horaInicio) return { precioTotal: 0, desglose: '', lineas: [], numHoras: 0 };
   if (!horaFin) {
     const [h, m] = horaInicio.split(':').map(Number);
     horaFin = `${(h + 1).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   }
 
   const slots = generarSlots(horaInicio, horaFin);
-  const totalMinutos = slots.length * 30;
-  const totalHoras = totalMinutos / 60;
-  const tiene2hOMas = totalHoras >= 2;
+  const numHoras = (slots.length * 30) / 60;
+  const { total: precioTotal, turno } = calcularTotal(horaInicio, slots.length);
+  const bloquesAdicionales = slots.length - 1;
 
-  // Agrupar slots por tarifa
-  const grupos = {};
-  for (const slot of slots) {
-    const franja = tarifaSlot(deporte, slot);
-    const tarifa = tiene2hOMas && franja.desde2h ? franja.desde2h : franja.base;
-    if (!grupos[tarifa]) grupos[tarifa] = 0;
-    grupos[tarifa] += 30; // minutos
+  const lineas = [
+    { tarifa: PRIMER_BLOQUE[turno], label: `S/${PRIMER_BLOQUE[turno]} primera media hora (turno ${turno})` },
+  ];
+  if (bloquesAdicionales > 0) {
+    lineas.push({
+      tarifa: BLOQUE_ADICIONAL * bloquesAdicionales,
+      label: `S/${BLOQUE_ADICIONAL} × ${bloquesAdicionales} bloque${bloquesAdicionales !== 1 ? 's' : ''} de 30 min`,
+    });
   }
 
-  const lineas = Object.entries(grupos).map(([tarifa, minutos]) => {
-    const horas = minutos / 60;
-    const horasLabel = horas % 1 === 0 ? `${horas}h` : `${horas}h`;
-    return { tarifa: Number(tarifa), horas, label: `S/${tarifa}/h × ${horasLabel}` };
-  });
-
-  const precioTotal = lineas.reduce((sum, l) => sum + l.tarifa * l.horas, 0);
-
   return {
-    precioTotal: Math.round(precioTotal * 100) / 100,
-    numHoras: totalHoras,
+    precioTotal,
+    numHoras,
+    turno,
     lineas,
     desglose: lineas.map(l => l.label).join(' + '),
   };
@@ -127,4 +136,7 @@ export const obtenerNombreCancha = (cancha) => {
   return nombres[cancha] || cancha;
 };
 
-export const obtenerTipoHorario = () => 'Tarifa Regular';
+export const obtenerTipoHorario = (hora) => {
+  if (!hora) return 'Tarifa Regular';
+  return obtenerTurno(hora) === 'noche' ? 'Turno noche' : 'Turno día';
+};

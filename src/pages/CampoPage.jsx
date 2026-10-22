@@ -340,40 +340,30 @@ const CampoPage = () => {
         {!modoEdicion && (
           <div className="hidden lg:block absolute top-1/2 -translate-y-1/2 right-[12%] xl:right-[15%] bg-white rounded-lg shadow-lg p-3 z-10">
             <h3 className="text-xs font-bold text-center mb-3 tracking-tight uppercase text-gray-700">
-              Tarifas/hora
+              Tarifas
             </h3>
 
             <table className="text-xs w-full">
               <thead>
                 <tr className="border-b border-gray-300">
                   <th className="text-left py-1 pr-3 font-semibold text-gray-600"></th>
-                  <th className="text-center py-1 px-2 font-semibold text-gray-600">Precio</th>
+                  <th className="text-center py-1 px-2 font-semibold text-gray-600">1h</th>
+                  <th className="text-center py-1 px-2 font-semibold text-gray-600">1.5h</th>
+                  <th className="text-center py-1 px-2 font-semibold text-gray-600">2h</th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="border-b border-gray-100">
-                  <td className="py-2 pr-3 font-semibold text-gray-800">Voley (dia)</td>
-                  <td className="text-center py-2 px-2 font-bold text-black">
-                    S/{TARIFAS.voley.dia.base}/h
-                  </td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-2 pr-3 font-semibold text-gray-800">Voley (noche)</td>
-                  <td className="text-center py-2 px-2 font-bold text-black">
-                    S/{TARIFAS.voley.noche.base}/h
-                  </td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-2 pr-3 font-semibold text-gray-800">Basket (dia)</td>
-                  <td className="text-center py-2 px-2 font-bold text-black">
-                    S/{TARIFAS.basket.dia.base}/h
-                  </td>
+                  <td className="py-2 pr-3 font-semibold text-gray-800">Día (9am-6pm)</td>
+                  <td className="text-center py-2 px-2 font-bold text-black">S/{TARIFAS.dia['1h']}</td>
+                  <td className="text-center py-2 px-2 font-bold text-black">S/{TARIFAS.dia['1.5h']}</td>
+                  <td className="text-center py-2 px-2 font-bold text-black">S/{TARIFAS.dia['2h']}</td>
                 </tr>
                 <tr>
-                  <td className="py-2 pr-3 font-semibold text-gray-800">Basket (noche)</td>
-                  <td className="text-center py-2 px-2 font-bold text-black">
-                    S/{TARIFAS.basket.noche.base}/h
-                  </td>
+                  <td className="py-2 pr-3 font-semibold text-gray-800">Noche (6pm-1am)</td>
+                  <td className="text-center py-2 px-2 font-bold text-black">S/{TARIFAS.noche['1h']}</td>
+                  <td className="text-center py-2 px-2 font-bold text-black">S/{TARIFAS.noche['1.5h']}</td>
+                  <td className="text-center py-2 px-2 font-bold text-black">S/{TARIFAS.noche['2h']}</td>
                 </tr>
               </tbody>
             </table>
@@ -500,19 +490,17 @@ const CampoPage = () => {
           <div className="lg:hidden mt-4 flex justify-center">
             <div className="w-full max-w-sm space-y-3">
               <h3 className="text-xs font-bold text-center mb-3 tracking-tight uppercase text-gray-700">
-                Tarifas/hora
+                Tarifas
               </h3>
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <h4 className="font-bold text-sm text-black mb-2">Voley</h4>
-                <p className="text-sm text-gray-600">Dia: <span className="font-bold text-black">S/{TARIFAS.voley.dia.base}</span>/h · desde 2h: <span className="font-bold text-black">S/{TARIFAS.voley.dia.desde2h}</span>/h</p>
-                <p className="text-sm text-gray-600">Noche: <span className="font-bold text-black">S/{TARIFAS.voley.noche.base}</span>/h · desde 2h: <span className="font-bold text-black">S/{TARIFAS.voley.noche.desde2h}</span>/h</p>
+                <h4 className="font-bold text-sm text-black mb-2">Día (9am-6pm)</h4>
+                <p className="text-sm text-gray-600">1h: <span className="font-bold text-black">S/{TARIFAS.dia['1h']}</span> · 1.5h: <span className="font-bold text-black">S/{TARIFAS.dia['1.5h']}</span> · 2h: <span className="font-bold text-black">S/{TARIFAS.dia['2h']}</span></p>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <h4 className="font-bold text-sm text-black mb-2">Basket</h4>
-                <p className="text-sm text-gray-600">Dia: <span className="font-bold text-black">S/{TARIFAS.basket.dia.base}</span>/h</p>
-                <p className="text-sm text-gray-600">Noche: <span className="font-bold text-black">S/{TARIFAS.basket.noche.base}</span>/h</p>
+                <h4 className="font-bold text-sm text-black mb-2">Noche (6pm-1am)</h4>
+                <p className="text-sm text-gray-600">1h: <span className="font-bold text-black">S/{TARIFAS.noche['1h']}</span> · 1.5h: <span className="font-bold text-black">S/{TARIFAS.noche['1.5h']}</span> · 2h: <span className="font-bold text-black">S/{TARIFAS.noche['2h']}</span></p>
               </div>
             </div>
           </div>
