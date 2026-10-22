@@ -231,7 +231,7 @@ export const ReservasProvider = ({ children }) => {
 
   const editarReserva = async (id, datosActualizados) => {
     // Whitelist de campos editables para evitar manipulacion de estado u otros campos sensibles
-    const camposPermitidos = ['nombre', 'telefono', 'email', 'dni', 'fecha', 'hora', 'hora_fin', 'dia_semana', 'notas', 'cancha', 'deporte', 'tipo_pago'];
+    const camposPermitidos = ['nombre', 'telefono', 'email', 'dni', 'fecha', 'hora', 'hora_fin', 'dia_semana', 'notas', 'cancha', 'deporte', 'tipo_pago', 'monto_total'];
     const datosFiltrados = Object.fromEntries(
       Object.entries(datosActualizados).filter(([key]) => camposPermitidos.includes(key))
     );

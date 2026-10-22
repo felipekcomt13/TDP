@@ -7,7 +7,7 @@ import { es } from 'date-fns/locale';
 import { useReservas } from '../../context/ReservasContext';
 import { useAuth } from '../../context/AuthContext';
 import { useCanchas } from '../../context/CanchasContext';
-import { calcularPrecioReserva, obtenerDesglosePrecio } from '../../utils/preciosCalculator';
+import { calcularPrecioReserva, obtenerDesglosePrecio, TARIFAS } from '../../utils/preciosCalculator';
 
 const PASOS = ['Deporte', 'Cancha', 'Horario', 'Confirmar'];
 const FECHA_INICIO_RESERVAS = new Date(2026, 2, 4); // 4 marzo 2026
@@ -388,7 +388,7 @@ const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-base text-black">{c.nombre}</div>
                       <div className="text-xs text-gray-500 mt-1">
-                        Desde S/ {deporte === 'basket' ? '35' : '25'}/hora
+                        Desde S/ {TARIFAS.dia['1h']}/hora
                       </div>
                     </div>
                     <svg className="w-5 h-5 text-gray-300 group-hover:text-black transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

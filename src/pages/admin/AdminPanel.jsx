@@ -7,13 +7,17 @@ import { es } from 'date-fns/locale';
 import { obtenerNombreCancha, calcularPrecioReserva, obtenerDesglosePrecio } from '../../utils/preciosCalculator';
 
 const AdminPanel = () => {
-  const { reservas, confirmarReserva, rechazarReserva, eliminarReserva, editarReserva, cargarReservas } = useReservas();
+  const { reservas, confirmarReserva, rechazarReserva, eliminarReserva, editarReserva, cargarReservas, generarHorarios } = useReservas();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState('pendientes');
   const [filtroCancha, setFiltroCancha] = useState('todas');
   const [busqueda, setBusqueda] = useState('');
   const [reservaAEliminar, setReservaAEliminar] = useState(null);
+  const [reservaAEditar, setReservaAEditar] = useState(null);
+  const [formEdicion, setFormEdicion] = useState(null);
+  const [errorEdicion, setErrorEdicion] = useState('');
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -77,6 +81,72 @@ const AdminPanel = () => {
     { valor: 'anexa-1', label: 'Anexa 1' },
     { valor: 'anexa-2', label: 'Anexa 2' }
   ];
+
+  const canchasEdicion = canchas.filter(c => c.valor !== 'todas');
+  const horariosEdicion = generarHorarios();
+
+  const abrirEdicion = (reserva) => {
+    setErrorEdicion('');
+    setReservaAEditar(reserva);
+    setFormEdicion({
+      nombre: reserva.nombre || '',
+      dni: reserva.dni || '',
+      telefono: reserva.telefono || '',
+      email: reserva.email || '',
+      fecha: reserva.fecha,
+      cancha: reserva.cancha || 'principal',
+      deporte: reserva.deporte || 'basket',
+      hora: reserva.hora,
+      horaFin: reserva.horaFin || '',
+      notas: reserva.notas || ''
+    });
+  };
+
+  const cerrarEdicion = () => {
+    setReservaAEditar(null);
+    setFormEdicion(null);
+    setErrorEdicion('');
+  };
+
+  const handleGuardarEdicion = async () => {
+    if (!formEdicion.nombre.trim()) { setErrorEdicion('El nombre es obligatorio'); return; }
+    if (!formEdicion.dni.trim() || formEdicion.dni.trim().length !== 8 || !/^\d+$/.test(formEdicion.dni.trim())) {
+      setErrorEdicion('El DNI debe tener 8 dígitos numéricos'); return;
+    }
+    if (formEdicion.horaFin && formEdicion.horaFin <= formEdicion.hora) {
+      setErrorEdicion('La hora de fin debe ser posterior a la hora de inicio'); return;
+    }
+
+    setErrorEdicion('');
+    setGuardandoEdicion(true);
+    try {
+      const diaSemana = new Date(formEdicion.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long' });
+      await editarReserva(reservaAEditar.id, {
+        nombre: formEdicion.nombre.trim(),
+        dni: formEdicion.dni.trim(),
+        telefono: formEdicion.telefono.trim() || null,
+        email: formEdicion.email.trim() || null,
+        fecha: formEdicion.fecha,
+        hora: formEdicion.hora,
+        hora_fin: formEdicion.horaFin || null,
+        dia_semana: diaSemana,
+        cancha: formEdicion.cancha,
+        deporte: formEdicion.deporte,
+        notas: formEdicion.notas.trim() || null,
+        // Recalculado porque el admin puede estar cambiando el horario/duración;
+        // monto_total normalmente queda congelado al crear la reserva, pero si
+        // cambia lo que efectivamente se reservó, el monto debe reflejarlo.
+        monto_total: calcularPrecioReserva(formEdicion.cancha, formEdicion.hora, formEdicion.horaFin || null)
+      });
+      cerrarEdicion();
+    } catch (error) {
+      // La causa más probable es el choque de horario detectado por la base
+      // de datos (ver migration-seguridad-reservas.sql)
+      setErrorEdicion(error.message);
+    } finally {
+      setGuardandoEdicion(false);
+    }
+  };
 
   const tabs = [
     { valor: 'pendientes', label: 'Pendientes', count: contarPorEstado('pendiente') },
@@ -263,33 +333,33 @@ const AdminPanel = () => {
                     </div>
 
                     {/* Acciones */}
-                    {esPendiente && (
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button
-                          onClick={async () => {
-                            try {
-                              await confirmarReserva(reserva.id);
-                            } catch (error) {
-                              // La causa más probable aquí es el choque de horario
-                              // detectado por la base de datos (ver migration-seguridad-reservas.sql)
-                              alert(error.message);
-                            }
-                          }}
-                          className="px-4 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
-                        >
-                          Confirmar
-                        </button>
-                        <button
-                          onClick={() => rechazarReserva(reserva.id)}
-                          className="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
-                        >
-                          Rechazar
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
+                      {esPendiente && (
+                        <>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await confirmarReserva(reserva.id);
+                              } catch (error) {
+                                // La causa más probable aquí es el choque de horario
+                                // detectado por la base de datos (ver migration-seguridad-reservas.sql)
+                                alert(error.message);
+                              }
+                            }}
+                            className="px-4 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
+                          >
+                            Confirmar
+                          </button>
+                          <button
+                            onClick={() => rechazarReserva(reserva.id)}
+                            className="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+                          >
+                            Rechazar
+                          </button>
+                        </>
+                      )}
 
-                    {reserva.estado === 'confirmada' && (
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      {reserva.estado === 'confirmada' && (
                         <select
                           value={reserva.tipoPago || ''}
                           onChange={(e) => editarReserva(reserva.id, { tipo_pago: e.target.value || null })}
@@ -302,14 +372,24 @@ const AdminPanel = () => {
                           <option value="plin">Plin</option>
                           <option value="transferencia">Transferencia</option>
                         </select>
+                      )}
+
+                      <button
+                        onClick={() => abrirEdicion(reserva)}
+                        className="px-4 py-2 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
+                      >
+                        Editar
+                      </button>
+
+                      {reserva.estado === 'confirmada' && (
                         <button
                           onClick={() => setReservaAEliminar(reserva)}
                           className="px-4 py-2 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 active:scale-[0.98] transition-all"
                         >
                           Eliminar
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
               );
@@ -346,6 +426,159 @@ const AdminPanel = () => {
                 className="flex-1 px-4 py-2.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 active:scale-[0.98] transition-all"
               >
                 Eliminar reserva
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de edicion de reserva */}
+      {reservaAEditar && formEdicion && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-bold text-black mb-4 uppercase tracking-wide">
+              Editar reserva
+            </h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={formEdicion.nombre}
+                  onChange={(e) => setFormEdicion(p => ({ ...p, nombre: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">DNI</label>
+                  <input
+                    type="text"
+                    value={formEdicion.dni}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, dni: e.target.value }))}
+                    maxLength={8}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Teléfono</label>
+                  <input
+                    type="text"
+                    value={formEdicion.telefono}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, telefono: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={formEdicion.email}
+                  onChange={(e) => setFormEdicion(p => ({ ...p, email: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
+                  <input
+                    type="date"
+                    value={formEdicion.fecha}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, fecha: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Cancha</label>
+                  <select
+                    value={formEdicion.cancha}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, cancha: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                  >
+                    {canchasEdicion.map(c => (
+                      <option key={c.valor} value={c.valor}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Deporte</label>
+                  <select
+                    value={formEdicion.deporte}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, deporte: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                  >
+                    <option value="basket">Básquet</option>
+                    <option value="voley">Vóley</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Hora inicio</label>
+                  <select
+                    value={formEdicion.hora}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, hora: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                  >
+                    {horariosEdicion.map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Hora fin</label>
+                  <select
+                    value={formEdicion.horaFin}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, horaFin: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
+                  >
+                    <option value="">+1h (defecto)</option>
+                    {horariosEdicion.filter(h => h > formEdicion.hora).map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Notas</label>
+                <textarea
+                  value={formEdicion.notas}
+                  onChange={(e) => setFormEdicion(p => ({ ...p, notas: e.target.value }))}
+                  rows={2}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 resize-none"
+                />
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Nuevo precio: <span className="font-semibold text-black">S/ {calcularPrecioReserva(formEdicion.cancha, formEdicion.hora, formEdicion.horaFin || null)}</span>
+              </p>
+
+              {errorEdicion && (
+                <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{errorEdicion}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={cerrarEdicion}
+                disabled={guardandoEdicion}
+                className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleGuardarEdicion}
+                disabled={guardandoEdicion}
+                className="flex-1 px-4 py-2.5 bg-black text-white text-xs font-medium rounded-lg hover:bg-gray-800 active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                {guardandoEdicion ? 'Guardando...' : 'Guardar cambios'}
               </button>
             </div>
           </div>
