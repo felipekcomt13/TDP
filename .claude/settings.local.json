@@ -20,7 +20,14 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(git checkout:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep:*)",
+      "Bash(npx vite:*)",
+      "Bash(find /d/Repositorios/TDP -type f \\\\\\(-name *.sql -o -name *.js -o -name *.jsx \\\\\\) ! -path */node_modules/* ! -path */dist/*)",
+      "Bash(git pull:*)",
+      "Bash(find /d/Repositorios/TDP/src -type f -name *.jsx -o -name *.js)",
+      "Bash(find /d/Repositorios/TDP/database -type f -name *.sql)"
     ],
     "deny": [],
     "ask": []
