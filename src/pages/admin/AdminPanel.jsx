@@ -7,7 +7,7 @@ import { es } from 'date-fns/locale';
 import { obtenerNombreCancha, calcularPrecioReserva, obtenerDesglosePrecio } from '../../utils/preciosCalculator';
 
 const AdminPanel = () => {
-  const { reservas, confirmarReserva, rechazarReserva, eliminarReserva, cargarReservas } = useReservas();
+  const { reservas, confirmarReserva, rechazarReserva, eliminarReserva, editarReserva, cargarReservas } = useReservas();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState('pendientes');
@@ -181,7 +181,9 @@ const AdminPanel = () => {
               const esPendiente = reserva.estado === 'pendiente';
               const esRechazada = reserva.estado === 'rechazada';
               const cancha = reserva.cancha || 'principal';
-              const precio = calcularPrecioReserva(cancha, reserva.hora, reserva.horaFin, reserva.deporte);
+              // El monto se congela al crear la reserva (montoTotal). Si es una
+              // reserva anterior a esa migración, se calcula al vuelo como antes.
+              const precio = reserva.montoTotal ?? calcularPrecioReserva(cancha, reserva.hora, reserva.horaFin, reserva.deporte);
               const desglose = reserva.horaFin ? obtenerDesglosePrecio(cancha, reserva.hora, reserva.horaFin, reserva.deporte) : null;
 
               return (
@@ -264,7 +266,15 @@ const AdminPanel = () => {
                     {esPendiente && (
                       <div className="flex gap-2 flex-shrink-0">
                         <button
-                          onClick={() => confirmarReserva(reserva.id)}
+                          onClick={async () => {
+                            try {
+                              await confirmarReserva(reserva.id);
+                            } catch (error) {
+                              // La causa más probable aquí es el choque de horario
+                              // detectado por la base de datos (ver migration-seguridad-reservas.sql)
+                              alert(error.message);
+                            }
+                          }}
                           className="px-4 py-2 bg-black text-white text-xs font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
                         >
                           Confirmar
@@ -279,7 +289,19 @@ const AdminPanel = () => {
                     )}
 
                     {reserva.estado === 'confirmada' && (
-                      <div className="flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <select
+                          value={reserva.tipoPago || ''}
+                          onChange={(e) => editarReserva(reserva.id, { tipo_pago: e.target.value || null })}
+                          className="px-2.5 py-2 bg-gray-50 border border-gray-200 text-gray-700 text-xs font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10"
+                          title="Medio de pago (para la caja)"
+                        >
+                          <option value="">Pago: sin especificar</option>
+                          <option value="efectivo">Efectivo</option>
+                          <option value="yape">Yape</option>
+                          <option value="plin">Plin</option>
+                          <option value="transferencia">Transferencia</option>
+                        </select>
                         <button
                           onClick={() => setReservaAEliminar(reserva)}
                           className="px-4 py-2 bg-red-50 text-red-600 text-xs font-medium rounded-lg hover:bg-red-100 active:scale-[0.98] transition-all"

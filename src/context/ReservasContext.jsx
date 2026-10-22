@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabase/client';
 import { useAuth } from './AuthContext';
+import { calcularPrecioReserva } from '../utils/preciosCalculator';
 
 const ReservasContext = createContext();
 
@@ -12,8 +13,24 @@ export const useReservas = () => {
   return context;
 };
 
+// Si el error es un choque de horario detectado por la base de datos
+// (constraint anti-solapamiento sobre reservas confirmadas), lo convertimos
+// en un mensaje legible. Cualquier otro error se relanza tal cual.
+const lanzarErrorLegible = (error) => {
+  if (error?.code === '23P01') {
+    throw new Error('Ese horario ya quedó ocupado por otra reserva confirmada. Actualiza la página e intenta con otro horario.');
+  }
+  throw error;
+};
+
 export const ReservasProvider = ({ children }) => {
   const [reservas, setReservas] = useState([]);
+  // Disponibilidad pública: solo fecha/hora/cancha/deporte de reservas CONFIRMADAS,
+  // sin datos personales. A diferencia de `reservas` (filtrada por RLS a "las mías"
+  // o "todas" si soy admin), esto viene de una función RPC abierta a cualquiera
+  // (incluso sin login) porque el calendario y el wizard necesitan saber qué
+  // horarios están ocupados sin tener acceso a nombre/DNI/teléfono/email de nadie.
+  const [disponibilidad, setDisponibilidad] = useState([]);
   const [configuracion, setConfiguracion] = useState({
     horaInicio: '06:00',
     horaFin: '25:00',
@@ -22,15 +39,22 @@ export const ReservasProvider = ({ children }) => {
   });
   const { user } = useAuth();
 
-  // Cargar reservas desde Supabase (todas para calendario, solo del usuario para "Mis Reservas")
+  // Cargar reservas desde Supabase (las propias, o todas si soy admin/empleado —
+  // lo decide la política RLS) y la disponibilidad pública (para todos, con login o sin él).
   useEffect(() => {
     cargarReservas();
+    cargarDisponibilidad();
 
-    // Suscribirse a cambios en tiempo real
+    // Suscribirse a cambios en tiempo real. Nota: Supabase filtra estos eventos
+    // por RLS según el rol de la conexión, así que un visitante anónimo no
+    // recibirá este evento (no tiene permiso de SELECT sobre `reservas`) y su
+    // vista de disponibilidad no se refrescará sola hasta su próxima acción o
+    // recarga de página; para usuarios logueados y admins sí funciona en vivo.
     const subscription = supabase
       .channel('reservas_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reservas' }, () => {
         cargarReservas();
+        cargarDisponibilidad();
       })
       .subscribe();
 
@@ -41,8 +65,8 @@ export const ReservasProvider = ({ children }) => {
 
   const cargarReservas = async () => {
     try {
-      // Cargar TODAS las reservas para mostrar en el calendario
-      // Las políticas RLS de Supabase manejarán los permisos
+      // Con las políticas RLS actuales esto trae: solo mis reservas si soy
+      // usuario normal, o todas si soy admin/empleado.
       // Nota: Supabase limita cada respuesta a 1000 filas, así que paginamos
       // con .range() para traer la tabla completa sin cortar las reservas más recientes
       const data = [];
@@ -80,12 +104,32 @@ export const ReservasProvider = ({ children }) => {
         notas: r.notas,
         cancha: r.cancha || 'principal',
         deporte: r.deporte || 'basket',
+        montoTotal: r.monto_total,
+        tipoPago: r.tipo_pago,
         fechaCreacion: r.created_at
       }));
 
       setReservas(reservasFormateadas);
     } catch {
       // Error silenciado en producción
+    }
+  };
+
+  // Disponibilidad pública (sin PII), accesible con o sin sesión.
+  const cargarDisponibilidad = async () => {
+    try {
+      const { data, error } = await supabase.rpc('obtener_disponibilidad');
+      if (error) throw error;
+
+      setDisponibilidad((data || []).map(d => ({
+        fecha: d.fecha,
+        hora: d.hora,
+        horaFin: d.hora_fin,
+        cancha: d.cancha || 'principal',
+        deporte: d.deporte || 'basket'
+      })));
+    } catch {
+      // Error silenciado: se reintenta en la siguiente carga
     }
   };
 
@@ -104,7 +148,15 @@ export const ReservasProvider = ({ children }) => {
       estado: nuevaReserva.estado || 'pendiente',
       notas: nuevaReserva.notas || null,
       cancha: nuevaReserva.cancha || 'principal',
-      deporte: nuevaReserva.deporte || 'basket'
+      deporte: nuevaReserva.deporte || 'basket',
+      // Precio congelado al momento de la reserva: si más adelante cambia la
+      // tarifa, esta reserva conserva el monto que se acordó con el cliente.
+      monto_total: calcularPrecioReserva(
+        nuevaReserva.cancha || 'principal',
+        nuevaReserva.hora,
+        nuevaReserva.horaFin || null,
+        nuevaReserva.deporte || 'basket'
+      )
     };
 
     const { data, error } = await supabase
@@ -113,10 +165,10 @@ export const ReservasProvider = ({ children }) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) lanzarErrorLegible(error);
 
-    // Recargar reservas
-    await cargarReservas();
+    // Recargar reservas y disponibilidad
+    await Promise.all([cargarReservas(), cargarDisponibilidad()]);
 
     // Devolver reserva formateada
     return {
@@ -134,6 +186,8 @@ export const ReservasProvider = ({ children }) => {
       notas: data.notas,
       cancha: data.cancha || 'principal',
       deporte: data.deporte || 'basket',
+      montoTotal: data.monto_total,
+      tipoPago: data.tipo_pago,
       fechaCreacion: data.created_at
     };
   };
@@ -152,16 +206,17 @@ export const ReservasProvider = ({ children }) => {
       estado: 'confirmada',
       notas: r.notas || null,
       cancha: r.cancha || 'principal',
-      deporte: r.deporte || 'basket'
+      deporte: r.deporte || 'basket',
+      monto_total: calcularPrecioReserva(r.cancha || 'principal', r.hora, r.horaFin || null, r.deporte || 'basket')
     }));
 
     const { error } = await supabase
       .from('reservas')
       .insert(registros);
 
-    if (error) throw error;
+    if (error) lanzarErrorLegible(error);
 
-    await cargarReservas();
+    await Promise.all([cargarReservas(), cargarDisponibilidad()]);
     return registros.length;
   };
 
@@ -171,12 +226,12 @@ export const ReservasProvider = ({ children }) => {
 
     if (error) throw error;
 
-    await cargarReservas();
+    await Promise.all([cargarReservas(), cargarDisponibilidad()]);
   };
 
   const editarReserva = async (id, datosActualizados) => {
     // Whitelist de campos editables para evitar manipulacion de estado u otros campos sensibles
-    const camposPermitidos = ['nombre', 'telefono', 'email', 'dni', 'fecha', 'hora', 'hora_fin', 'dia_semana', 'notas', 'cancha', 'deporte'];
+    const camposPermitidos = ['nombre', 'telefono', 'email', 'dni', 'fecha', 'hora', 'hora_fin', 'dia_semana', 'notas', 'cancha', 'deporte', 'tipo_pago'];
     const datosFiltrados = Object.fromEntries(
       Object.entries(datosActualizados).filter(([key]) => camposPermitidos.includes(key))
     );
@@ -188,9 +243,9 @@ export const ReservasProvider = ({ children }) => {
       .update(datosFiltrados)
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) lanzarErrorLegible(error);
 
-    await cargarReservas();
+    await Promise.all([cargarReservas(), cargarDisponibilidad()]);
   };
 
   const confirmarReserva = async (id) => {
@@ -199,7 +254,7 @@ export const ReservasProvider = ({ children }) => {
 
     if (error) throw error;
 
-    await cargarReservas();
+    await Promise.all([cargarReservas(), cargarDisponibilidad()]);
   };
 
   const rechazarReserva = async (id) => {
@@ -208,18 +263,18 @@ export const ReservasProvider = ({ children }) => {
 
     if (error) throw error;
 
-    await cargarReservas();
+    await Promise.all([cargarReservas(), cargarDisponibilidad()]);
   };
 
   const obtenerReservasPorFecha = (fecha) => {
     return reservas.filter(reserva => reserva.fecha === fecha);
   };
 
+  // Disponibilidad: se basa en `disponibilidad` (ya filtrada a solo confirmadas,
+  // vía la función pública obtener_disponibilidad), no en `reservas`, para que
+  // funcione igual con o sin sesión iniciada.
   const verificarDisponibilidad = (fecha, hora, canchaSeleccionada = null) => {
-    return !reservas.some(reserva => {
-      // Solo considerar reservas confirmadas (las pendientes no bloquean)
-      if (reserva.estado !== 'confirmada') return false;
-
+    return !disponibilidad.some(reserva => {
       // Verificar si la reserva está en la fecha/hora solicitada
       let estaEnHorario = false;
       if (!reserva.horaFin) {
@@ -298,14 +353,11 @@ export const ReservasProvider = ({ children }) => {
     });
   };
 
-  // Obtener canchas bloqueadas por reglas de bloqueo recíproco
+  // Obtener canchas bloqueadas por reglas de bloqueo recíproco (basado en disponibilidad pública)
   const obtenerCanchasBloqueadas = (fecha, hora) => {
     const canchasBloqueadas = new Set();
 
-    reservas.forEach(reserva => {
-      // Solo considerar reservas confirmadas (las pendientes no bloquean)
-      if (reserva.estado !== 'confirmada') return;
-
+    disponibilidad.forEach(reserva => {
       // Verificar si la reserva está en esta fecha/hora
       let estaEnHorario = false;
       if (!reserva.horaFin) {
@@ -359,6 +411,7 @@ export const ReservasProvider = ({ children }) => {
 
   const value = {
     reservas,
+    disponibilidad,
     configuracion,
     setConfiguracion,
     cargarReservas,
