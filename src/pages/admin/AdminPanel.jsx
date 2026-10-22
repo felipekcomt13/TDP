@@ -402,7 +402,9 @@ const AdminPanel = () => {
                           className="px-2.5 py-2 bg-gray-50 border border-gray-200 text-gray-700 text-xs font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-black/10"
                           title="Medio de pago (para la caja)"
                         >
-                          <option value="">Pago: sin especificar</option>
+                          {/* Opción vacía oculta: evita que el select muestre "Efectivo"
+                              seleccionado por defecto cuando en realidad no se eligió nada */}
+                          <option value="" disabled hidden></option>
                           <option value="efectivo">Efectivo</option>
                           <option value="yape">Yape</option>
                           <option value="plin">Plin</option>
