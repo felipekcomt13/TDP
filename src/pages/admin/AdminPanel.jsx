@@ -7,7 +7,7 @@ import { es } from 'date-fns/locale';
 import { obtenerNombreCancha, calcularPrecioReserva, obtenerDesglosePrecio } from '../../utils/preciosCalculator';
 
 const AdminPanel = () => {
-  const { reservas, confirmarReserva, rechazarReserva, eliminarReserva, editarReserva, cargarReservas, generarHorarios } = useReservas();
+  const { reservas, confirmarReserva, rechazarReserva, eliminarReserva, editarReserva, cargarReservas, generarHorarios, verificarDisponibilidad } = useReservas();
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [filtro, setFiltro] = useState('pendientes');
@@ -107,6 +107,42 @@ const AdminPanel = () => {
     setFormEdicion(null);
     setErrorEdicion('');
   };
+
+  // Al editar, la propia reserva (si está confirmada) aparece como "ocupando"
+  // su horario actual en la disponibilidad pública — hay que excluirla para
+  // no bloquearse a sí misma en los selects de abajo.
+  const excluirDeDisponibilidad = reservaAEditar
+    ? { fecha: reservaAEditar.fecha, hora: reservaAEditar.hora, horaFin: reservaAEditar.horaFin, cancha: reservaAEditar.cancha }
+    : null;
+
+  // Horas de inicio disponibles para la fecha/cancha elegidas en el formulario.
+  // Siempre se incluye la hora ya seleccionada, aunque ya no esté disponible,
+  // para que el <select> nunca quede en un valor que no aparece en sus opciones.
+  const horasInicioEdicion = formEdicion
+    ? horariosEdicion.filter(h =>
+        h === formEdicion.hora || verificarDisponibilidad(formEdicion.fecha, h, formEdicion.cancha, excluirDeDisponibilidad)
+      )
+    : [];
+
+  // Horas de fin válidas: consecutivas y disponibles desde la hora de inicio
+  // (misma regla que el wizard de reserva). También conserva el valor actual
+  // si ya no es una opción contigua válida, por la misma razón de arriba.
+  const horasFinEdicion = (() => {
+    if (!formEdicion) return [];
+    const idxInicio = horariosEdicion.indexOf(formEdicion.hora);
+    if (idxInicio === -1) return formEdicion.horaFin ? [formEdicion.horaFin] : [];
+
+    const opciones = [];
+    for (let i = idxInicio + 1; i < horariosEdicion.length; i++) {
+      const slot = horariosEdicion[i];
+      if (!verificarDisponibilidad(formEdicion.fecha, slot, formEdicion.cancha, excluirDeDisponibilidad)) break;
+      opciones.push(slot);
+    }
+    if (formEdicion.horaFin && !opciones.includes(formEdicion.horaFin)) {
+      opciones.push(formEdicion.horaFin);
+    }
+    return opciones;
+  })();
 
   const handleGuardarEdicion = async () => {
     if (!formEdicion.nombre.trim()) { setErrorEdicion('El nombre es obligatorio'); return; }
@@ -489,7 +525,7 @@ const AdminPanel = () => {
                   <input
                     type="date"
                     value={formEdicion.fecha}
-                    onChange={(e) => setFormEdicion(p => ({ ...p, fecha: e.target.value }))}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, fecha: e.target.value, horaFin: '' }))}
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                   />
                 </div>
@@ -497,7 +533,7 @@ const AdminPanel = () => {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Cancha</label>
                   <select
                     value={formEdicion.cancha}
-                    onChange={(e) => setFormEdicion(p => ({ ...p, cancha: e.target.value }))}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, cancha: e.target.value, horaFin: '' }))}
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                   >
                     {canchasEdicion.map(c => (
@@ -523,10 +559,10 @@ const AdminPanel = () => {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Hora inicio</label>
                   <select
                     value={formEdicion.hora}
-                    onChange={(e) => setFormEdicion(p => ({ ...p, hora: e.target.value }))}
+                    onChange={(e) => setFormEdicion(p => ({ ...p, hora: e.target.value, horaFin: '' }))}
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                   >
-                    {horariosEdicion.map(h => (
+                    {horasInicioEdicion.map(h => (
                       <option key={h} value={h}>{h}</option>
                     ))}
                   </select>
@@ -539,7 +575,7 @@ const AdminPanel = () => {
                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10"
                   >
                     <option value="">+1h (defecto)</option>
-                    {horariosEdicion.filter(h => h > formEdicion.hora).map(h => (
+                    {horasFinEdicion.map(h => (
                       <option key={h} value={h}>{h}</option>
                     ))}
                   </select>

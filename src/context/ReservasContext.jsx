@@ -270,11 +270,27 @@ export const ReservasProvider = ({ children }) => {
     return reservas.filter(reserva => reserva.fecha === fecha);
   };
 
+  // `disponibilidad` no trae el id de la reserva (ver obtener_disponibilidad()
+  // en migration-seguridad-reservas.sql: solo expone lo mínimo, sin PII), así
+  // que para excluir "mi propia reserva" al editarla comparamos por la
+  // combinación fecha+hora+horaFin+cancha de su estado ORIGINAL. Es seguro
+  // porque el constraint anti-solapamiento (misma migración) garantiza que
+  // no puede existir otra reserva confirmada con ese mismo horario y cancha.
+  const coincideConExclusion = (reserva, excluir) => {
+    if (!excluir) return false;
+    return reserva.fecha === excluir.fecha &&
+      reserva.hora === excluir.hora &&
+      reserva.horaFin === excluir.horaFin &&
+      reserva.cancha === excluir.cancha;
+  };
+
   // Disponibilidad: se basa en `disponibilidad` (ya filtrada a solo confirmadas,
   // vía la función pública obtener_disponibilidad), no en `reservas`, para que
   // funcione igual con o sin sesión iniciada.
-  const verificarDisponibilidad = (fecha, hora, canchaSeleccionada = null) => {
+  const verificarDisponibilidad = (fecha, hora, canchaSeleccionada = null, excluir = null) => {
     return !disponibilidad.some(reserva => {
+      if (coincideConExclusion(reserva, excluir)) return false;
+
       // Verificar si la reserva está en la fecha/hora solicitada
       let estaEnHorario = false;
       if (!reserva.horaFin) {
@@ -321,11 +337,11 @@ export const ReservasProvider = ({ children }) => {
     return horarios.slice(indexInicio, indexFin);
   };
 
-  const verificarDisponibilidadRango = (fecha, horaInicio, horaFin, canchaSeleccionada = null) => {
+  const verificarDisponibilidadRango = (fecha, horaInicio, horaFin, canchaSeleccionada = null, excluir = null) => {
     const horasDelRango = obtenerHorasEnRango(horaInicio, horaFin);
 
     // Verificar que todas las horas del rango estén disponibles
-    return horasDelRango.every(hora => verificarDisponibilidad(fecha, hora, canchaSeleccionada));
+    return horasDelRango.every(hora => verificarDisponibilidad(fecha, hora, canchaSeleccionada, excluir));
   };
 
   const obtenerReservaEnSlot = (fecha, hora, cancha = null, incluirPendientes = false) => {
