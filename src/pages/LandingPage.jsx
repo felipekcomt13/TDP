@@ -57,6 +57,7 @@ const LandingPage = () => {
   const [muteado, setMuteado] = useState(true);
   const [tabActivo, setTabActivo] = useState('disponibilidad');
   const [mostrarWizard, setMostrarWizard] = useState(false);
+  const [slotSeleccionado, setSlotSeleccionado] = useState(null);
 
   const videoActivo = heroConfig.video_activo && heroConfig.video_url;
   const esVideoNativo = videoActivo && !esGoogleDrive(heroConfig.video_url);
@@ -220,7 +221,7 @@ const LandingPage = () => {
       </div>
 
       {/* Contenido del tab activo */}
-      {tabActivo === 'disponibilidad' && <DisponibilidadRapida onSeleccionarSlot={() => setMostrarWizard(true)} />}
+      {tabActivo === 'disponibilidad' && <DisponibilidadRapida onSeleccionarSlot={(slot) => { setSlotSeleccionado(slot); setMostrarWizard(true); }} />}
 
       {tabActivo === 'como-reservar' && (
         <div className="px-6 lg:px-8 py-12 md:py-16">
@@ -335,6 +336,7 @@ const LandingPage = () => {
 
       {mostrarWizard && (
         <WizardReserva
+          preseleccion={slotSeleccionado}
           onCerrar={() => setMostrarWizard(false)}
           onReservaCreada={() => setMostrarWizard(false)}
         />

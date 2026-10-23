@@ -12,15 +12,21 @@ import { calcularPrecioReserva, obtenerDesglosePrecio, TARIFAS } from '../../uti
 const PASOS = ['Deporte', 'Cancha', 'Horario', 'Confirmar'];
 const FECHA_INICIO_RESERVAS = new Date(2026, 2, 4); // 4 marzo 2026
 
-const WizardReserva = ({ onCerrar, onReservaCreada, inline = false }) => {
-  const [paso, setPaso] = useState(0);
-  const [deporte, setDeporte] = useState(null);
-  const [cancha, setCancha] = useState(null);
+// `preseleccion` ({ deporte, cancha, fecha, horaInicio, horaFin }) permite abrir el
+// wizard directo en el paso de horario con todo ya elegido, p. ej. cuando el
+// usuario toca un horario libre en DisponibilidadRapida: así no tiene que volver
+// a escoger deporte, cancha, día y hora que ya escogió.
+const WizardReserva = ({ onCerrar, onReservaCreada, inline = false, preseleccion = null }) => {
+  const [paso, setPaso] = useState(preseleccion ? 2 : 0);
+  const [deporte, setDeporte] = useState(preseleccion?.deporte ?? null);
+  const [cancha, setCancha] = useState(preseleccion?.cancha ?? null);
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
-  const [fecha, setFecha] = useState(null);
-  const [horaInicio, setHoraInicio] = useState(null);
-  const [horaFin, setHoraFin] = useState(null);
-  const [mesCalendario, setMesCalendario] = useState(new Date());
+  const [fecha, setFecha] = useState(preseleccion?.fecha ?? null);
+  const [horaInicio, setHoraInicio] = useState(preseleccion?.horaInicio ?? null);
+  const [horaFin, setHoraFin] = useState(preseleccion?.horaFin ?? null);
+  const [mesCalendario, setMesCalendario] = useState(
+    preseleccion?.fecha ? new Date(preseleccion.fecha + 'T12:00:00') : new Date()
+  );
   const slotsRef = useRef(null);
   const [formData, setFormData] = useState({ nombre: '', dni: '', telefono: '', email: '', notas: '' });
   const [loading, setLoading] = useState(false);

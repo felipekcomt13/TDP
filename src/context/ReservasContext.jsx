@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../services/supabase/client';
 import { useAuth } from './AuthContext';
 import { calcularPrecioReserva } from '../utils/preciosCalculator';
@@ -31,6 +31,9 @@ export const ReservasProvider = ({ children }) => {
   // (incluso sin login) porque el calendario y el wizard necesitan saber qué
   // horarios están ocupados sin tener acceso a nombre/DNI/teléfono/email de nadie.
   const [disponibilidad, setDisponibilidad] = useState([]);
+  // false hasta que termina la primera carga de `disponibilidad` (con éxito o no),
+  // para que la UI no muestre todo como "Libre" mientras todavía no sabe nada.
+  const [disponibilidadCargada, setDisponibilidadCargada] = useState(false);
   const [configuracion, setConfiguracion] = useState({
     horaInicio: '06:00',
     horaFin: '25:00',
@@ -38,6 +41,18 @@ export const ReservasProvider = ({ children }) => {
     diasSemana: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
   });
   const { user } = useAuth();
+
+  // Índice fecha -> reservas de ese día. verificarDisponibilidad se llama cientos
+  // de veces por render (cada slot × cada cancha × varios días), así que en vez
+  // de recorrer todas las reservas confirmadas cada vez, solo miramos las del día.
+  const disponibilidadPorFecha = useMemo(() => {
+    const mapa = new Map();
+    disponibilidad.forEach(reserva => {
+      if (!mapa.has(reserva.fecha)) mapa.set(reserva.fecha, []);
+      mapa.get(reserva.fecha).push(reserva);
+    });
+    return mapa;
+  }, [disponibilidad]);
 
   // Cargar reservas desde Supabase (las propias, o todas si soy admin/empleado —
   // lo decide la política RLS) y la disponibilidad pública (para todos, con login o sin él).
@@ -130,6 +145,8 @@ export const ReservasProvider = ({ children }) => {
       })));
     } catch {
       // Error silenciado: se reintenta en la siguiente carga
+    } finally {
+      setDisponibilidadCargada(true);
     }
   };
 
@@ -288,7 +305,7 @@ export const ReservasProvider = ({ children }) => {
   // vía la función pública obtener_disponibilidad), no en `reservas`, para que
   // funcione igual con o sin sesión iniciada.
   const verificarDisponibilidad = (fecha, hora, canchaSeleccionada = null, excluir = null) => {
-    return !disponibilidad.some(reserva => {
+    return !(disponibilidadPorFecha.get(fecha) || []).some(reserva => {
       if (coincideConExclusion(reserva, excluir)) return false;
 
       // Verificar si la reserva está en la fecha/hora solicitada
@@ -373,7 +390,7 @@ export const ReservasProvider = ({ children }) => {
   const obtenerCanchasBloqueadas = (fecha, hora) => {
     const canchasBloqueadas = new Set();
 
-    disponibilidad.forEach(reserva => {
+    (disponibilidadPorFecha.get(fecha) || []).forEach(reserva => {
       // Verificar si la reserva está en esta fecha/hora
       let estaEnHorario = false;
       if (!reserva.horaFin) {
@@ -428,6 +445,7 @@ export const ReservasProvider = ({ children }) => {
   const value = {
     reservas,
     disponibilidad,
+    disponibilidadCargada,
     configuracion,
     setConfiguracion,
     cargarReservas,

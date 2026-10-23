@@ -1,142 +1,151 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useReservas } from '../../context/ReservasContext';
 import { useCanchas } from '../../context/CanchasContext';
+import { TARIFAS } from '../../utils/preciosCalculator';
 
-const formatearFechaCorta = (fecha) => {
-  const d = new Date(fecha + 'T12:00:00');
-  return d.toLocaleDateString('es-PE', { weekday: 'short', day: 'numeric', month: 'short' });
-};
+// Turnos en que se agrupa la lista. El precio sigue la misma regla que
+// preciosCalculator: turno noche desde las 18:00, día antes de eso.
+const TURNOS = [
+  { id: 'manana', label: 'Mañana', desde: 0, hasta: 12 * 60, precio: TARIFAS.dia['1h'] },
+  { id: 'tarde', label: 'Tarde', desde: 12 * 60, hasta: 18 * 60, precio: TARIFAS.dia['1h'] },
+  { id: 'noche', label: 'Noche', desde: 18 * 60, hasta: Infinity, precio: TARIFAS.noche['1h'] },
+];
 
-const formatearFechaMobile = (fecha) => {
-  const d = new Date(fecha + 'T12:00:00');
-  const dia = d.toLocaleDateString('es-PE', { weekday: 'short' }).replace('.', '').toUpperCase();
-  const num = d.getDate();
-  return { dia, num };
-};
+const DEPORTES = [
+  { id: 'voley', label: 'VOLEY' },
+  { id: 'basket', label: 'BASKET' },
+];
 
-const formatearHora = (hora) => {
-  const [h] = hora.split(':').map(Number);
-  if (h >= 24) return `${(h - 24).toString().padStart(2, '0')}:00`;
-  return hora;
-};
+// Por debajo de esta fracción de horarios libres, el día se marca como "pocos"
+const UMBRAL_POCOS = 0.25;
 
-const formatearRango = (hora, intervalo) => {
+const aMinutos = (hora) => {
   const [h, m] = hora.split(':').map(Number);
-  const inicio = formatearHora(hora);
-  let finH = h, finM = m + intervalo;
-  if (finM >= 60) { finH += Math.floor(finM / 60); finM = finM % 60; }
-  const finHora = finH >= 24 ? finH - 24 : finH;
-  const fin = `${finHora.toString().padStart(2, '0')}:${finM.toString().padStart(2, '0')}`;
-  return `${inicio} - ${fin}`;
+  return h * 60 + m;
 };
+
+// Devuelve 'HH:MM' sin normalizar pasada la medianoche (p. ej. '24:30'),
+// igual que generarHorarios y el wizard.
+const sumarMinutos = (hora, minutos) => {
+  const total = aMinutos(hora) + minutos;
+  return `${Math.floor(total / 60).toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
+};
+
+// Para mostrar: '24:30' -> '00:30'
+const formatearHora = (hora) => {
+  const [h, m] = hora.split(':').map(Number);
+  return `${(h % 24).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+};
+
+const formatearRango = (hora, duracion) => `${formatearHora(hora)} – ${formatearHora(sumarMinutos(hora, duracion))}`;
+
+const aFechaStr = (d) =>
+  `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+
+const nombreCorto = (cancha) => cancha.nombre.replace('Cancha ', '');
 
 const DisponibilidadRapida = ({ onSeleccionarSlot }) => {
-  const { verificarDisponibilidad, generarHorarios, configuracion } = useReservas();
-  const { canchas } = useCanchas();
+  const { verificarDisponibilidad, generarHorarios, configuracion, disponibilidadCargada } = useReservas();
+  const { canchas, loading: canchasCargando } = useCanchas();
 
   const hoy = new Date();
-  const hoyStr = `${hoy.getFullYear()}-${(hoy.getMonth() + 1).toString().padStart(2, '0')}-${hoy.getDate().toString().padStart(2, '0')}`;
+  const hoyStr = aFechaStr(hoy);
+  const minutosAhora = hoy.getHours() * 60 + hoy.getMinutes();
+
   const [fecha, setFecha] = useState(hoyStr);
   const [deporte, setDeporte] = useState('voley');
-  const [canchaMovil, setCanchaMovil] = useState(0);
 
-  const canchasDisponibles = canchas.filter(c => c.estado === 'disponible' && (c.deportes || []).includes(deporte));
-  const horarios = useMemo(() => generarHorarios(), [generarHorarios]);
+  const canchasDeporte = canchas.filter(c => c.estado === 'disponible' && (c.deportes || []).includes(deporte));
+  const horarios = generarHorarios();
+  const intervalo = configuracion.intervalo;
 
-  const horaActualNum = hoy.getHours() * 60 + hoy.getMinutes();
-  const esHoy = fecha === hoyStr;
+  const fechas = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(hoy);
+    d.setDate(d.getDate() + i);
+    return aFechaStr(d);
+  });
 
-  const esHoraPasada = (hora) => {
-    if (!esHoy) return false;
-    const [h, m] = hora.split(':').map(Number);
-    if (h >= 24) return false;
-    return (h * 60 + m) < horaActualNum;
-  };
-
-  const handleClickSlot = () => {
-    if (onSeleccionarSlot) {
-      onSeleccionarSlot();
-    }
-  };
-
-  const fechas = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(hoy);
-      d.setDate(d.getDate() + i);
-      const str = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-      arr.push(str);
-    }
-    return arr;
-  }, []);
-
-  // Generar estado de cada slot de 30 min
-  const slotsBrutos = useMemo(() => {
-    return horarios.map(hora => ({
+  // Slots de 30 min de un día, ya sin los que pasaron (hoy) y con el estado
+  // de cada cancha. Las horas >= 24 son de madrugada del día siguiente, nunca pasadas.
+  const calcularSlots = (f) => horarios
+    .filter(hora => f !== hoyStr || aMinutos(hora) >= minutosAhora)
+    .map(hora => ({
       hora,
-      canchas: canchasDisponibles.map(cancha => {
-        const pasada = esHoraPasada(hora);
-        return {
-          canchaId: cancha.id,
-          disponible: !pasada && verificarDisponibilidad(fecha, hora, cancha.id),
-          pasada,
-        };
-      })
+      libres: canchasDeporte.map(c => verificarDisponibilidad(f, hora, c.id)),
     }));
-  }, [horarios, fecha, canchasDisponibles, verificarDisponibilidad]);
 
-  // Agrupar en bloques de 1h cuando ambas mitades tienen el mismo estado en todas las canchas
-  const slotMatrix = useMemo(() => {
-    const resultado = [];
-    let i = 0;
-    while (i < slotsBrutos.length) {
-      const actual = slotsBrutos[i];
-      const siguiente = slotsBrutos[i + 1];
+  const resumenDia = (f) => {
+    const slots = calcularSlots(f);
+    const total = slots.length * canchasDeporte.length;
+    const libres = slots.reduce((acc, s) => acc + s.libres.filter(Boolean).length, 0);
+    let nivel = 'libre';
+    if (libres === 0) nivel = 'lleno';
+    else if (libres / total < UMBRAL_POCOS) nivel = 'pocos';
+    // Para el usuario contamos horas, no medias horas
+    return { nivel, horasLibres: Math.floor((libres * intervalo) / 60) };
+  };
 
-      // Verificar si se puede agrupar: debe existir siguiente slot y ser la otra mitad de la misma hora
-      const [hA, mA] = actual.hora.split(':').map(Number);
-      let puedeMerge = false;
+  const cargando = !disponibilidadCargada || canchasCargando;
+  const resumenes = cargando ? {} : Object.fromEntries(fechas.map(f => [f, resumenDia(f)]));
 
-      if (siguiente && mA % 60 === 0) {
-        const [hS, mS] = siguiente.hora.split(':').map(Number);
-        // Solo merge si es XX:00 + XX:30 de la misma hora
-        if (hS === hA && mS === 30) {
-          // Verificar que todas las canchas tengan el mismo estado en ambas mitades
-          puedeMerge = actual.canchas.every((c, idx) => {
-            const s = siguiente.canchas[idx];
-            return c.disponible === s.disponible && c.pasada === s.pasada;
-          });
-        }
-      }
+  const slots = cargando ? [] : calcularSlots(fecha);
+  const slotPorHora = new Map(slots.map(s => [s.hora, s]));
 
-      if (puedeMerge) {
-        resultado.push({
-          hora: actual.hora,
-          duracion: 60,
-          canchas: actual.canchas,
-        });
-        i += 2;
-      } else {
-        resultado.push({
-          hora: actual.hora,
-          duracion: 30,
-          canchas: actual.canchas,
-        });
-        i += 1;
-      }
-    }
-    return resultado;
-  }, [slotsBrutos]);
+  // Junta XX:00 + XX:30 en una fila de 1h cuando todas las canchas tienen el
+  // mismo estado en ambas mitades. Como ahora se ven todas las canchas a la vez
+  // (en desktop y en móvil), el criterio coincide con lo que el usuario ve.
+  const filas = [];
+  for (let i = 0; i < slots.length; i++) {
+    const actual = slots[i];
+    const siguiente = slots[i + 1];
+    const puedeJuntar = siguiente &&
+      aMinutos(actual.hora) % 60 === 0 &&
+      aMinutos(siguiente.hora) === aMinutos(actual.hora) + 30 &&
+      actual.libres.every((libre, idx) => libre === siguiente.libres[idx]);
+    filas.push({ hora: actual.hora, duracion: puedeJuntar ? 60 : 30, libres: actual.libres });
+    if (puedeJuntar) i++;
+  }
 
-  // Auto-scroll al primer slot libre en mobile
-  const primerLibreRef = useRef(null);
-  useEffect(() => {
-    if (primerLibreRef.current) {
-      primerLibreRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [fecha, canchaMovil]);
+  const secciones = TURNOS
+    .map(turno => {
+      const filasTurno = filas.filter(f => aMinutos(f.hora) >= turno.desde && aMinutos(f.hora) < turno.hasta);
+      const horasLibres = filasTurno.filter(f => f.libres.some(Boolean)).reduce((acc, f) => acc + f.duracion, 0) / 60;
+      return { ...turno, filas: filasTurno, horasLibres };
+    })
+    .filter(s => s.filas.length > 0);
 
-  let primerLibreEncontrado = false;
+  const hayLibres = filas.some(f => f.libres.some(Boolean));
+  const siguienteFechaConLibres = fechas.find(f => f > fecha && resumenes[f]?.nivel !== 'lleno');
+
+  const seleccionar = (fila, idxCancha) => {
+    const cancha = canchasDeporte[idxCancha];
+    // Por defecto 1 hora si la media hora siguiente también está libre en esa
+    // cancha; si no, 30 min. En el wizard se puede ajustar.
+    const siguiente = slotPorHora.get(sumarMinutos(fila.hora, 30));
+    const duracion = fila.duracion === 60 || siguiente?.libres[idxCancha] ? 60 : 30;
+    onSeleccionarSlot?.({
+      deporte,
+      cancha,
+      fecha,
+      horaInicio: fila.hora,
+      horaFin: sumarMinutos(fila.hora, duracion),
+    });
+  };
+
+  const etiquetaHoras = (n) => `${n} ${n === 1 ? 'hora libre' : 'horas libres'}`;
+
+  const encabezadoTurno = (seccion) => (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-sm font-bold uppercase tracking-wide text-black">{seccion.label}</span>
+      <span className="text-xs text-gray-500">
+        S/ {seccion.precio} la hora
+        <span className="mx-1.5 text-gray-300">·</span>
+        {seccion.horasLibres > 0 ? etiquetaHoras(seccion.horasLibres) : 'Completo'}
+      </span>
+    </div>
+  );
+
+  const COLOR_NIVEL = { libre: 'bg-emerald-500', pocos: 'bg-amber-400', lleno: 'bg-gray-300' };
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-10 sm:py-16 md:py-20">
@@ -145,24 +154,22 @@ const DisponibilidadRapida = ({ onSeleccionarSlot }) => {
           <h2 className="text-2xl sm:text-4xl font-bold text-black mb-2 sm:mb-4 tracking-tight">
             DISPONIBILIDAD
           </h2>
-          <p className="text-gray-600 text-[11px] sm:text-sm uppercase tracking-wide">
-            Horarios en tiempo real — toca un horario libre para reservar
+          <p className="text-gray-600 text-xs sm:text-sm uppercase tracking-wide">
+            Toca una cancha libre para reservarla
           </p>
         </div>
 
         {/* Selector de deporte */}
         <div className="flex gap-2 justify-center mb-4 sm:mb-6">
-          {[
-            { id: 'voley', label: 'VOLEY' },
-            { id: 'basket', label: 'BASKET' },
-          ].map((d) => (
+          {DEPORTES.map((d) => (
             <button
               key={d.id}
-              onClick={() => { setDeporte(d.id); setCanchaMovil(0); }}
-              className={`px-5 sm:px-6 py-2 sm:py-2.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+              onClick={() => setDeporte(d.id)}
+              aria-pressed={deporte === d.id}
+              className={`px-5 sm:px-6 py-2 sm:py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
                 deporte === d.id
                   ? 'bg-black text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               {d.label}
@@ -170,158 +177,188 @@ const DisponibilidadRapida = ({ onSeleccionarSlot }) => {
           ))}
         </div>
 
-        {/* Selector de fecha */}
-        <div className="grid grid-cols-7 gap-1.5 sm:flex sm:gap-2 sm:justify-center mb-4 sm:mb-6">
+        {/* Selector de fecha, con un punto que indica qué tan lleno está cada día */}
+        <div className="grid grid-cols-7 gap-1.5 sm:flex sm:gap-2 sm:justify-center mb-3">
           {fechas.map((f) => {
-            const mobile = formatearFechaMobile(f);
+            const d = new Date(f + 'T12:00:00');
             const esHoyChip = f === hoyStr;
+            const dia = esHoyChip ? 'Hoy' : d.toLocaleDateString('es-PE', { weekday: 'short' }).replace('.', '');
+            const resumen = resumenes[f];
+            const seleccionada = fecha === f;
+            const descripcion = resumen
+              ? (resumen.nivel === 'lleno' ? 'sin horarios libres' : etiquetaHoras(resumen.horasLibres))
+              : 'cargando';
             return (
               <button
                 key={f}
                 onClick={() => setFecha(f)}
-                className={`sm:flex-shrink-0 sm:px-4 py-1.5 sm:py-2.5 text-xs font-medium rounded-lg transition-all text-center ${
-                  fecha === f
+                aria-pressed={seleccionada}
+                aria-label={`${d.toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })}, ${descripcion}`}
+                className={`sm:min-w-[4.5rem] sm:px-4 py-2 rounded-lg transition-all flex flex-col items-center gap-1 ${
+                  seleccionada
                     ? 'bg-black text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {/* Mobile: vertical compacto */}
-                <span className="sm:hidden flex flex-col items-center gap-0.5">
-                  <span className="text-[9px] font-medium tracking-wide uppercase">{esHoyChip ? 'HOY' : mobile.dia}</span>
-                  <span className="text-sm font-bold leading-none">{mobile.num}</span>
-                </span>
-                {/* Desktop: texto completo */}
-                <span className="hidden sm:inline capitalize">
-                  {esHoyChip ? 'Hoy' : formatearFechaCorta(f)}
-                </span>
+                <span className="text-[11px] font-medium uppercase tracking-wide leading-none">{dia}</span>
+                <span className="text-sm font-bold leading-none">{d.getDate()}</span>
+                <span
+                  aria-hidden="true"
+                  className={`w-1.5 h-1.5 rounded-full ${resumen ? COLOR_NIVEL[resumen.nivel] : 'bg-transparent'}`}
+                />
               </button>
             );
           })}
         </div>
 
         {/* Leyenda */}
-        <div className="flex items-center justify-center gap-4 sm:gap-6 mb-5 sm:mb-8 text-[10px] sm:text-[11px] uppercase tracking-wider text-gray-500">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm bg-white border border-gray-300" />
-            <span>Libre</span>
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mb-6 sm:mb-8 text-[11px] uppercase tracking-wider text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-white border-2 border-black" />
+            Libre
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-200" />
+            Ocupado
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+            Día libre / pocos / lleno
+          </span>
+        </div>
+
+        {cargando ? (
+          <div className="space-y-2" aria-busy="true" aria-label="Cargando horarios">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="h-12 rounded-lg bg-gray-100 animate-pulse" />
+            ))}
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm bg-black" />
-            <span>Ocupado</span>
+        ) : canchasDeporte.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
+            <p className="text-gray-500 text-sm">No hay canchas disponibles para este deporte.</p>
           </div>
-          {esHoy && (
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm bg-gray-200" />
-              <span>Pasado</span>
-            </div>
-          )}
-        </div>
-
-        {/* Desktop: Tabla horas x canchas */}
-        <div className="hidden lg:block overflow-hidden rounded-xl border border-gray-200">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="w-32 p-2.5 text-[10px] uppercase tracking-wider text-gray-400 font-medium">
-                  Hora
-                </th>
-                {canchasDisponibles.map(c => (
-                  <th key={c.id} className="p-2.5 text-xs font-bold uppercase tracking-wide text-black">
-                    {c.nombre.replace('Cancha ', '')}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {slotMatrix.map(row => (
-                <tr key={row.hora} className="border-b border-gray-100 last:border-b-0">
-                  <td className="p-2 text-xs font-mono text-gray-400 text-center whitespace-nowrap bg-gray-50">
-                    {formatearRango(row.hora, row.duracion)}
-                  </td>
-                  {row.canchas.map((cell, idx) => {
-                    const cancha = canchasDisponibles[idx];
-                    if (cell.pasada) {
-                      return (
-                        <td key={cancha.id} className="p-1.5 text-center bg-gray-100 text-gray-300 text-[11px]">
-                          ---
-                        </td>
-                      );
-                    }
-                    if (cell.disponible) {
-                      return (
-                        <td
-                          key={cancha.id}
-                          onClick={handleClickSlot}
-                          className="p-1.5 text-center bg-white text-gray-600 text-xs cursor-pointer hover:bg-gray-50 hover:ring-1 hover:ring-inset hover:ring-black transition-all group"
-                        >
-                          <span className="font-medium text-gray-500 group-hover:text-black">
-                            Libre
-                          </span>
-                        </td>
-                      );
-                    }
-                    return (
-                      <td key={cancha.id} className="p-1.5 text-center bg-black text-white text-[11px]">
-                        <span className="font-medium tracking-wide">Ocupado</span>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile/Tablet: tabs de cancha */}
-        <div className="lg:hidden flex gap-1 mb-4 sm:mb-6 border-b border-gray-200">
-          {canchasDisponibles.map((cancha, idx) => (
-            <button
-              key={cancha.id}
-              onClick={() => { setCanchaMovil(idx); primerLibreEncontrado = false; }}
-              className={`flex-1 px-2 sm:px-3 py-2 sm:py-2.5 text-[11px] sm:text-xs font-medium transition-colors relative ${
-                canchaMovil === idx
-                  ? 'text-black'
-                  : 'text-gray-400'
-              }`}
-            >
-              {cancha.nombre.replace('Cancha ', '')}
-              {canchaMovil === idx && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Mobile/Tablet: lista vertical completa */}
-        <div className="lg:hidden space-y-1 sm:space-y-1.5">
-          {slotMatrix.map(row => {
-            const cell = row.canchas[canchaMovil];
-            if (!cell) return null;
-
-            const esPrimerLibre = cell.disponible && !primerLibreEncontrado;
-            if (esPrimerLibre) primerLibreEncontrado = true;
-
-            return (
-              <div
-                key={row.hora}
-                ref={esPrimerLibre ? primerLibreRef : null}
-                onClick={() => cell.disponible ? handleClickSlot() : null}
-                className={`flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-[11px] sm:text-xs font-medium transition-all ${
-                  cell.pasada
-                    ? 'bg-gray-100 text-gray-300'
-                    : cell.disponible
-                      ? 'bg-white border border-gray-200 text-gray-700 active:scale-[0.98] cursor-pointer hover:border-black'
-                      : 'bg-black text-white'
-                }`}
+        ) : !hayLibres ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl border border-gray-100">
+            <p className="text-gray-700 text-sm font-medium mb-1">
+              {filas.length === 0 ? 'Ya no quedan horarios por hoy.' : 'Todo reservado este día.'}
+            </p>
+            {siguienteFechaConLibres ? (
+              <button
+                onClick={() => setFecha(siguienteFechaConLibres)}
+                className="mt-3 px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-gray-800 transition-all"
               >
-                <span className="font-mono">{formatearRango(row.hora, row.duracion)}</span>
-                <span className="uppercase tracking-wider">
-                  {cell.pasada ? '---' : cell.disponible ? 'Libre' : 'Ocupado'}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+                Ver el {new Date(siguienteFechaConLibres + 'T12:00:00').toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric' })}
+              </button>
+            ) : (
+              <p className="text-gray-500 text-sm">No hay horarios libres en los próximos 7 días.</p>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Desktop: tabla horas × canchas, agrupada por turno */}
+            <div className="hidden lg:block overflow-hidden rounded-xl border border-gray-200">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th scope="col" className="w-36 p-2.5 text-[11px] uppercase tracking-wider text-gray-500 font-medium">
+                      Hora
+                    </th>
+                    {canchasDeporte.map(c => (
+                      <th key={c.id} scope="col" className="p-2.5 text-xs font-bold uppercase tracking-wide text-black">
+                        {nombreCorto(c)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                {secciones.map(seccion => (
+                  <tbody key={seccion.id}>
+                    <tr className="border-b border-gray-200 bg-gray-50/60">
+                      <td colSpan={canchasDeporte.length + 1} className="px-4 py-2.5">
+                        {encabezadoTurno(seccion)}
+                      </td>
+                    </tr>
+                    {seccion.filas.map(fila => (
+                      <tr key={fila.hora} className="border-b border-gray-100 last:border-b-0">
+                        <th scope="row" className="p-2 text-xs font-mono font-normal text-gray-600 text-center whitespace-nowrap">
+                          {formatearRango(fila.hora, fila.duracion)}
+                        </th>
+                        {fila.libres.map((libre, idx) => (
+                          <td key={canchasDeporte[idx].id} className="p-1">
+                            {libre ? (
+                              <button
+                                onClick={() => seleccionar(fila, idx)}
+                                aria-label={`Reservar ${canchasDeporte[idx].nombre}, ${formatearRango(fila.hora, fila.duracion)}`}
+                                className="w-full py-1.5 rounded-md border-2 border-black bg-white text-black text-xs font-bold hover:bg-black hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1 transition-colors"
+                              >
+                                Reservar
+                              </button>
+                            ) : (
+                              <div className="w-full py-1.5 rounded-md bg-gray-100 text-gray-500 text-xs text-center">
+                                Ocupado
+                              </div>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
+              </table>
+            </div>
+
+            {/* Mobile/Tablet: una fila por horario con un botón por cada cancha */}
+            <div className="lg:hidden space-y-6">
+              {secciones.map(seccion => (
+                <section key={seccion.id}>
+                  <div className="mb-2 pb-2 border-b border-gray-200">{encabezadoTurno(seccion)}</div>
+                  <div className="space-y-1.5">
+                    {seccion.filas.map(fila => {
+                      const algunaLibre = fila.libres.some(Boolean);
+                      return (
+                        <div
+                          key={fila.hora}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                            algunaLibre ? 'bg-white border border-gray-200' : 'bg-gray-50'
+                          }`}
+                        >
+                          <span className={`font-mono text-xs whitespace-nowrap w-[6.5rem] flex-shrink-0 ${algunaLibre ? 'text-black font-medium' : 'text-gray-500'}`}>
+                            {formatearRango(fila.hora, fila.duracion)}
+                          </span>
+                          {algunaLibre ? (
+                            <div className="flex flex-wrap gap-1.5 justify-end flex-1">
+                              {fila.libres.map((libre, idx) => libre ? (
+                                <button
+                                  key={canchasDeporte[idx].id}
+                                  onClick={() => seleccionar(fila, idx)}
+                                  aria-label={`Reservar ${canchasDeporte[idx].nombre}, ${formatearRango(fila.hora, fila.duracion)}`}
+                                  className="px-3 py-1.5 rounded-md border-2 border-black bg-white text-black text-xs font-bold active:bg-black active:text-white active:scale-[0.97] transition-all"
+                                >
+                                  {nombreCorto(canchasDeporte[idx])}
+                                </button>
+                              ) : (
+                                <span
+                                  key={canchasDeporte[idx].id}
+                                  className="px-3 py-1.5 rounded-md bg-gray-100 text-gray-400 text-xs line-through"
+                                >
+                                  <span className="sr-only">{canchasDeporte[idx].nombre} ocupada: </span>
+                                  {nombreCorto(canchasDeporte[idx])}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="flex-1 text-right text-xs uppercase tracking-wider text-gray-500">Completo</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
