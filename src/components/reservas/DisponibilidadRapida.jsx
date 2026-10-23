@@ -37,7 +37,15 @@ const formatearHora = (hora) => {
   return `${(h % 24).toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 };
 
-const formatearRango = (hora, duracion) => `${formatearHora(hora)} – ${formatearHora(sumarMinutos(hora, duracion))}`;
+const formatearRango = (hora, duracion, separador = ' – ') =>
+  `${formatearHora(hora)}${separador}${formatearHora(sumarMinutos(hora, duracion))}`;
+
+// Orden de las columnas/botones de cancha; las que no estén aquí van al final
+const ORDEN_CANCHAS = ['anexa-1', 'anexa-2', 'principal'];
+const posicionCancha = (cancha) => {
+  const idx = ORDEN_CANCHAS.indexOf(cancha.id);
+  return idx === -1 ? ORDEN_CANCHAS.length : idx;
+};
 
 const aFechaStr = (d) =>
   `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
@@ -55,7 +63,9 @@ const DisponibilidadRapida = ({ onSeleccionarSlot }) => {
   const [fecha, setFecha] = useState(hoyStr);
   const [deporte, setDeporte] = useState('voley');
 
-  const canchasDeporte = canchas.filter(c => c.estado === 'disponible' && (c.deportes || []).includes(deporte));
+  const canchasDeporte = canchas
+    .filter(c => c.estado === 'disponible' && (c.deportes || []).includes(deporte))
+    .sort((a, b) => posicionCancha(a) - posicionCancha(b));
   const horarios = generarHorarios();
   const intervalo = configuracion.intervalo;
 
@@ -319,28 +329,32 @@ const DisponibilidadRapida = ({ onSeleccionarSlot }) => {
                       return (
                         <div
                           key={fila.hora}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                          className={`flex items-center gap-2 px-2.5 py-2 rounded-lg ${
                             algunaLibre ? 'bg-white border border-gray-200' : 'bg-gray-50'
                           }`}
                         >
-                          <span className={`font-mono text-xs whitespace-nowrap w-[6.5rem] flex-shrink-0 ${algunaLibre ? 'text-black font-medium' : 'text-gray-500'}`}>
-                            {formatearRango(fila.hora, fila.duracion)}
+                          <span className={`font-mono text-xs whitespace-nowrap flex-shrink-0 ${algunaLibre ? 'text-black font-medium' : 'text-gray-500'}`}>
+                            {formatearRango(fila.hora, fila.duracion, '–')}
                           </span>
                           {algunaLibre ? (
-                            <div className="flex flex-wrap gap-1.5 justify-end flex-1">
+                            // Una sola fila: una columna igual de ancha por cancha, sin saltos de línea
+                            <div
+                              className="grid gap-1 flex-1 min-w-0"
+                              style={{ gridTemplateColumns: `repeat(${canchasDeporte.length}, minmax(0, 1fr))` }}
+                            >
                               {fila.libres.map((libre, idx) => libre ? (
                                 <button
                                   key={canchasDeporte[idx].id}
                                   onClick={() => seleccionar(fila, idx)}
                                   aria-label={`Reservar ${canchasDeporte[idx].nombre}, ${formatearRango(fila.hora, fila.duracion)}`}
-                                  className="px-3 py-1.5 rounded-md border-2 border-black bg-white text-black text-xs font-bold active:bg-black active:text-white active:scale-[0.97] transition-all"
+                                  className="px-1 py-1.5 rounded-md border-2 border-black bg-white text-black text-[11px] sm:text-xs font-bold whitespace-nowrap truncate text-center active:bg-black active:text-white active:scale-[0.97] transition-all"
                                 >
                                   {nombreCorto(canchasDeporte[idx])}
                                 </button>
                               ) : (
                                 <span
                                   key={canchasDeporte[idx].id}
-                                  className="px-3 py-1.5 rounded-md bg-gray-100 text-gray-400 text-xs line-through"
+                                  className="px-1 py-1.5 rounded-md border-2 border-transparent bg-gray-100 text-gray-400 text-[11px] sm:text-xs whitespace-nowrap truncate text-center line-through"
                                 >
                                   <span className="sr-only">{canchasDeporte[idx].nombre} ocupada: </span>
                                   {nombreCorto(canchasDeporte[idx])}
