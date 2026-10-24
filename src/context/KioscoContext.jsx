@@ -200,6 +200,26 @@ export const KioscoProvider = ({ children }) => {
     return data;
   };
 
+  // Registra un carrito completo en una sola transacción (ver
+  // migration-kiosco-modo-venta.sql): o se venden todos los productos o ninguno.
+  // items: [{ productoId, cantidad }]
+  const registrarVentaLote = async (items, tipoPago = 'efectivo') => {
+    const { data, error } = await supabase.rpc('registrar_venta_kiosco_lote', {
+      p_items: items.map(i => ({ producto_id: i.productoId, cantidad: i.cantidad })),
+      p_tipo_pago: tipoPago
+    });
+
+    if (error) throw error;
+
+    if (!data.success) {
+      throw new Error(data.error);
+    }
+
+    await cargarProductos(false);
+    await cargarVentas(false);
+    return data;
+  };
+
   const cargarVentas = async (mostrarLoading = true) => {
     try {
       if (mostrarLoading) setLoadingVentas(true);
@@ -270,6 +290,7 @@ export const KioscoProvider = ({ children }) => {
     subirImagenProducto,
     eliminarImagenProducto,
     registrarVenta,
+    registrarVentaLote,
     cargarVentas,
     registrarEgresoCaja,
     eliminarEgresoCaja

@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useKiosco } from '../../context/KioscoContext';
 import { useCuentas, CUENTAS } from '../../context/CuentasContext';
+import ModoVenta from '../../components/kiosco/ModoVenta';
 
 const formInicial = {
   nombre: '',
@@ -466,6 +467,7 @@ const KioscoAdmin = () => {
 
   const tabs = [
     ...(!empleado ? [{ valor: 'inventario', label: 'Inventario' }] : []),
+    { valor: 'modo-venta', label: 'Modo venta' },
     { valor: 'ventas', label: 'Ventas' },
     { valor: 'historial', label: 'Historial' }
   ];
@@ -1526,6 +1528,7 @@ const KioscoAdmin = () => {
 
         {/* Contenido del tab */}
         {tabActivo === 'inventario' && renderInventario()}
+        {tabActivo === 'modo-venta' && <ModoVenta onMensaje={mostrarMensaje} />}
         {tabActivo === 'ventas' && renderVentas()}
         {tabActivo === 'historial' && renderHistorial()}
       </div>
