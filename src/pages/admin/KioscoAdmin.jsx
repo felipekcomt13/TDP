@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useKiosco } from '../../context/KioscoContext';
-import { useCuentas, CUENTAS } from '../../context/CuentasContext';
+import { METODOS_PAGO, nombrePago, badgePago } from '../../constants/metodosPago';
+import { asignacionesPago } from '../../utils/pagosVenta';
 import ModoVenta from '../../components/kiosco/ModoVenta';
 
 const formInicial = {
@@ -33,11 +34,11 @@ const KioscoAdmin = () => {
     registrarEgresoCaja,
     eliminarEgresoCaja,
     nombreUsuario,
+    pagosPorTicket,
     movimientosStock,
     hayMasMovimientos,
     cargarMasMovimientosStock
   } = useKiosco();
-  const { registrarCargo } = useCuentas();
 
   const empleado = isEmpleado();
   const [tabActivo, setTabActivo] = useState(empleado ? 'ventas' : 'inventario');
@@ -266,12 +267,7 @@ const KioscoAdmin = () => {
     setVentaPendiente(producto);
   };
 
-  const getNombrePago = (tipoPago) => {
-    if (tipoPago === 'plin') return 'Plin QR';
-    if (tipoPago === 'efectivo') return 'Efectivo';
-    const cuenta = CUENTAS.find(c => c.id === tipoPago);
-    return cuenta ? cuenta.nombre : tipoPago;
-  };
+  const getNombrePago = nombrePago;
 
   const confirmarVenta = async (tipoPago) => {
     if (!ventaPendiente) return;
@@ -280,12 +276,6 @@ const KioscoAdmin = () => {
     setVentaPendiente(null);
     try {
       const resultado = await registrarVenta(producto.id, cantidad, tipoPago);
-
-      // Si es cuenta personal, registrar cargo
-      const esCuenta = CUENTAS.some(c => c.id === tipoPago);
-      if (esCuenta) {
-        await registrarCargo(tipoPago, parseFloat(producto.precio) * cantidad, `Kiosco: ${producto.nombre}${cantidad > 1 ? ` x${cantidad}` : ''}`);
-      }
 
       setProductoVendido(producto.id);
       setTimeout(() => setProductoVendido(null), 1500);
@@ -425,11 +415,13 @@ const KioscoAdmin = () => {
   const ventasPaginadas = ventasFiltradas.slice(0, limitHistorial);
 
   // Desglose por metodo de pago
+  // (el monto de una línea pagada con varios métodos se reparte entre ellos)
   const desglosePago = ventasFiltradas.reduce((acc, v) => {
-    const tipo = v.tipo_pago || 'efectivo';
-    if (!acc[tipo]) acc[tipo] = { total: 0, cantidad: 0 };
-    acc[tipo].total += parseFloat(v.precio_venta) * v.cantidad;
-    acc[tipo].cantidad += 1;
+    asignacionesPago(v, pagosPorTicket).forEach(({ tipo, monto }) => {
+      if (!acc[tipo]) acc[tipo] = { total: 0, cantidad: 0 };
+      acc[tipo].total += monto;
+      acc[tipo].cantidad += 1;
+    });
     return acc;
   }, {});
 
@@ -478,8 +470,15 @@ const KioscoAdmin = () => {
   const CAJA_INICIAL = 156.80;
   const CAJA_FECHA_INICIO = '2026-04-14';
 
-  const montoVenta = (v) => parseFloat(v.precio_venta) * v.cantidad;
-  const ventasEfectivo = ventas.filter(v => v.tipo_pago === 'efectivo' && fechaLocal(v.created_at) >= CAJA_FECHA_INICIO);
+  // Solo cuenta la parte pagada en efectivo (una venta puede mezclar métodos)
+  const ventasEfectivo = ventas
+    .filter(v => fechaLocal(v.created_at) >= CAJA_FECHA_INICIO)
+    .map(v => ({
+      created_at: v.created_at,
+      monto: asignacionesPago(v, pagosPorTicket).filter(a => a.tipo === 'efectivo').reduce((sum, a) => sum + a.monto, 0)
+    }))
+    .filter(v => v.monto > 0);
+  const montoVenta = (v) => v.monto;
   const egresosDesdeInicio = egresosCaja.filter(e => fechaLocal(e.created_at) >= CAJA_FECHA_INICIO);
 
   const totalEfectivoHoy = ventasEfectivo
@@ -991,13 +990,7 @@ const KioscoAdmin = () => {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {Object.entries(desglosePago).sort(([,a], [,b]) => b.total - a.total).map(([tipo, datos]) => (
               <div key={tipo} className="bg-white border border-gray-100 rounded-xl p-3">
-                <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded-full mb-2 ${
-                  tipo === 'plin'
-                    ? 'bg-purple-50 text-purple-600'
-                    : CUENTAS.some(c => c.id === tipo)
-                      ? 'bg-amber-50 text-amber-700'
-                      : 'bg-gray-100 text-gray-500'
-                }`}>
+                <span className={`inline-block px-2 py-0.5 text-[10px] font-medium rounded-full mb-2 ${badgePago(tipo)}`}>
                   {getNombrePago(tipo)}
                 </span>
                 <p className="text-sm font-bold text-gray-900">S/ {datos.total.toFixed(2)}</p>
@@ -1037,15 +1030,12 @@ const KioscoAdmin = () => {
                         x{venta.cantidad}
                       </span>
                     )}
-                    <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${
-                      venta.tipo_pago === 'plin'
-                        ? 'bg-purple-50 text-purple-600 border border-purple-100'
-                        : CUENTAS.some(c => c.id === venta.tipo_pago)
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {getNombrePago(venta.tipo_pago)}
-                    </span>
+                    {(pagosPorTicket.get(venta.ticket_id) || [{ tipo_pago: venta.tipo_pago }]).map((pago) => (
+                      <span key={pago.tipo_pago} className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${badgePago(pago.tipo_pago)}`}>
+                        {getNombrePago(pago.tipo_pago)}
+                        {pago.monto != null && pagosPorTicket.get(venta.ticket_id).length > 1 && ` S/ ${parseFloat(pago.monto).toFixed(2)}`}
+                      </span>
+                    ))}
                     <span className="text-xs text-gray-500">
                       Vendido por <span className="font-medium text-gray-700">{nombreUsuario(venta.vendido_por)}</span>
                     </span>
@@ -1441,41 +1431,15 @@ const KioscoAdmin = () => {
               )}
             </div>
             <div className="px-8 pb-8 flex flex-col gap-3">
-              <button
-                onClick={() => confirmarVenta('efectivo')}
-                className="w-full py-4 bg-gray-900 text-white text-sm font-bold rounded-xl hover:bg-black active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-wide"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                Efectivo
-              </button>
-              <button
-                onClick={() => confirmarVenta('plin')}
-                className="w-full py-4 bg-[#00D4AA] text-white text-sm font-bold rounded-xl hover:bg-[#00c49e] active:scale-[0.98] transition-all flex items-center justify-center gap-3 uppercase tracking-wide"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                </svg>
-                Plin QR
-              </button>
-              <div className="border-t border-gray-100 pt-3 mt-1">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider text-center mb-2">Cuentas personales</p>
-                <div className="flex flex-col gap-2">
-                  {CUENTAS.map((cuenta) => (
-                    <button
-                      key={cuenta.id}
-                      onClick={() => confirmarVenta(cuenta.id)}
-                      className="w-full py-3 bg-amber-50 text-amber-700 text-sm font-bold rounded-xl hover:bg-amber-100 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase tracking-wide border border-amber-200"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                      {cuenta.nombre}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {METODOS_PAGO.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => confirmarVenta(m.id)}
+                  className={`w-full py-4 text-sm font-bold rounded-xl hover:opacity-90 active:scale-[0.98] transition-all uppercase tracking-wide border-2 ${m.clase}`}
+                >
+                  {m.nombre}
+                </button>
+              ))}
               <button
                 onClick={() => setVentaPendiente(null)}
                 className="w-full py-3 text-sm font-medium text-gray-400 hover:text-gray-600 transition-colors"

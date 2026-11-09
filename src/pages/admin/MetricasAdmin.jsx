@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useKiosco } from '../../context/KioscoContext';
 import { useReservas } from '../../context/ReservasContext';
 import { CANCHAS, CANCHAS_INFO, DEPORTES_INFO } from '../../constants/reservas';
+import { nombrePago } from '../../constants/metodosPago';
+import { asignacionesPago } from '../../utils/pagosVenta';
 
 const PERIODOS = [
   { id: 7, label: '7 días' },
@@ -19,7 +21,6 @@ const FRANJAS = [
   { id: 'tarde', label: 'tarde', desde: 12, hasta: 18 },
   { id: 'noche', label: 'noche', desde: 18, hasta: 24 }
 ];
-const METODOS = { efectivo: 'Efectivo', plin: 'Plin QR' };
 
 const soles = (n) => `S/ ${Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const pct = (n) => `${Math.round(n * 100)}%`;
@@ -90,7 +91,7 @@ const BarrasV = ({ cols }) => {
 const MetricasAdmin = () => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
-  const { ventas, productos } = useKiosco();
+  const { ventas, productos, pagosPorTicket } = useKiosco();
   const { reservas } = useReservas();
 
   const [tab, setTab] = useState('kiosco');
@@ -140,7 +141,7 @@ const MetricasAdmin = () => {
       const monto = Number(v.precio_venta) * v.cantidad;
       sumar(porDia, fechaISO(f), monto);
       sumar(porHora, f.getHours(), monto);
-      sumar(porMetodo, v.tipo_pago || 'efectivo', monto);
+      asignacionesPago(v, pagosPorTicket).forEach(a => sumar(porMetodo, a.tipo, a.monto));
     });
 
     // Pares de productos que se compran juntos en el mismo ticket
@@ -169,7 +170,7 @@ const MetricasAdmin = () => {
       pares: ordenarDesc(pares).filter(([, n]) => n >= 2).slice(0, 5),
       sinMovimiento, stockBajo
     };
-  }, [ventas, productos, desde]);
+  }, [ventas, productos, pagosPorTicket, desde]);
 
   // Últimos días con ventas (máx. 30 columnas) para el gráfico diario
   const colsDia = useMemo(() => {
@@ -384,7 +385,7 @@ const MetricasAdmin = () => {
               </Seccion>
               <Seccion titulo="Método de pago">
                 <BarrasH filas={kiosco.porMetodo.map(([id, monto]) => ({
-                  label: METODOS[id] || id.charAt(0).toUpperCase() + id.slice(1),
+                  label: nombrePago(id),
                   valor: monto,
                   texto: `${soles(monto)} · ${pct(kiosco.ingresos ? monto / kiosco.ingresos : 0)}`
                 }))} />

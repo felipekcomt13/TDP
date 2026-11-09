@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../services/supabase/client';
+import { agruparPagosPorTicket } from '../utils/pagosVenta';
 
 const PAGINA_MOVIMIENTOS = 100;
 
@@ -19,6 +20,7 @@ export const KioscoProvider = ({ children }) => {
   const [egresosCaja, setEgresosCaja] = useState([]);
   const [loadingProductos, setLoadingProductos] = useState(true);
   const [loadingVentas, setLoadingVentas] = useState(true);
+  const [pagosVenta, setPagosVenta] = useState([]);
   const [movimientosStock, setMovimientosStock] = useState([]);
   const [hayMasMovimientos, setHayMasMovimientos] = useState(false);
   const cargandoMovimientos = useRef(false);
@@ -33,6 +35,7 @@ export const KioscoProvider = ({ children }) => {
     cargarEgresosCaja();
     cargarNombresUsuarios();
     cargarMovimientosStock();
+    cargarPagosVenta();
 
     const productosSubscription = supabase
       .channel('productos_kiosco_changes')
@@ -55,6 +58,13 @@ export const KioscoProvider = ({ children }) => {
       })
       .subscribe();
 
+    const pagosSubscription = supabase
+      .channel('pagos_venta_kiosco_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_venta_kiosco' }, () => {
+        cargarPagosVenta();
+      })
+      .subscribe();
+
     const stockSubscription = supabase
       .channel('movimientos_stock_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'movimientos_stock' }, () => {
@@ -63,6 +73,7 @@ export const KioscoProvider = ({ children }) => {
       .subscribe();
 
     return () => {
+      pagosSubscription.unsubscribe();
       stockSubscription.unsubscribe();
       productosSubscription.unsubscribe();
       ventasSubscription.unsubscribe();
@@ -262,10 +273,12 @@ export const KioscoProvider = ({ children }) => {
   // Registra un carrito completo en una sola transacción (ver
   // migration-kiosco-modo-venta.sql): o se venden todos los productos o ninguno.
   // items: [{ productoId, cantidad }]
-  const registrarVentaLote = async (items, tipoPago = 'efectivo') => {
+  // pagos: [{ tipoPago, monto }] — uno o varios métodos; la suma debe ser el total
+  // (ver migration-pagos-multiples.sql).
+  const registrarVentaLote = async (items, pagos) => {
     const { data, error } = await supabase.rpc('registrar_venta_kiosco_lote', {
       p_items: items.map(i => ({ producto_id: i.productoId, cantidad: i.cantidad })),
-      p_tipo_pago: tipoPago
+      p_pagos: pagos.map(p => ({ tipo_pago: p.tipoPago, monto: p.monto }))
     });
 
     if (error) throw error;
@@ -276,7 +289,21 @@ export const KioscoProvider = ({ children }) => {
 
     await cargarProductos(false);
     await cargarVentas(false);
+    await cargarPagosVenta();
     return data;
+  };
+
+  const cargarPagosVenta = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pagos_venta_kiosco')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setPagosVenta(data || []);
+    } catch {
+      // Silenciado - RLS deniega para no-admins o la migración aún no se aplicó
+    }
   };
 
   const cargarVentas = async (mostrarLoading = true) => {
@@ -334,6 +361,8 @@ export const KioscoProvider = ({ children }) => {
     await cargarEgresosCaja();
   };
 
+  const pagosPorTicket = useMemo(() => agruparPagosPorTicket(pagosVenta), [pagosVenta]);
+
   const value = {
     productos,
     ventas,
@@ -341,6 +370,7 @@ export const KioscoProvider = ({ children }) => {
     loadingProductos,
     loadingVentas,
     nombreUsuario,
+    pagosPorTicket,
     movimientosStock,
     hayMasMovimientos,
     cargarMasMovimientosStock,
