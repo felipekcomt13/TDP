@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useKiosco } from '../../context/KioscoContext';
@@ -31,7 +31,11 @@ const KioscoAdmin = () => {
     eliminarImagenProducto,
     registrarVenta,
     registrarEgresoCaja,
-    eliminarEgresoCaja
+    eliminarEgresoCaja,
+    nombreUsuario,
+    movimientosStock,
+    hayMasMovimientos,
+    cargarMasMovimientosStock
   } = useKiosco();
   const { registrarCargo } = useCuentas();
 
@@ -47,6 +51,9 @@ const KioscoAdmin = () => {
   const [filtroDesde, setFiltroDesde] = useState('');
   const [filtroHasta, setFiltroHasta] = useState('');
   const [busquedaHistorial, setBusquedaHistorial] = useState('');
+  const [incluirVentasStock, setIncluirVentasStock] = useState(false);
+  const [limiteStock, setLimiteStock] = useState(100);
+  const finListaStock = useRef(null);
   const [cantidadVenta, setCantidadVenta] = useState(1);
   const [limitHistorial, setLimitHistorial] = useState(50);
   const [archivoImagen, setArchivoImagen] = useState(null);
@@ -358,9 +365,59 @@ const KioscoAdmin = () => {
     if (filtroHasta && fechaLocal > filtroHasta) return false;
     if (busquedaHistorial) {
       const b = busquedaHistorial.toLowerCase();
-      if (!v.nombre_producto?.toLowerCase().includes(b)) return false;
+      if (!v.nombre_producto?.toLowerCase().includes(b) && !nombreUsuario(v.vendido_por).toLowerCase().includes(b)) return false;
     }
     return true;
+  });
+
+  // Historial de egresos de caja (quién, cuándo, cuánto y por qué)
+  const egresosFiltrados = egresosCaja.filter(e => {
+    const f = new Date(e.created_at);
+    const fecha = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+    if (filtroDesde && fecha < filtroDesde) return false;
+    if (filtroHasta && fecha > filtroHasta) return false;
+    if (busquedaHistorial) {
+      const b = busquedaHistorial.toLowerCase();
+      if (!e.descripcion?.toLowerCase().includes(b) && !nombreUsuario(e.registrado_por).toLowerCase().includes(b)) return false;
+    }
+    return true;
+  });
+  const totalEgresosFiltrados = egresosFiltrados.reduce((sum, e) => sum + parseFloat(e.monto), 0);
+
+  // Historial de stock. Una venta y su descuento de stock ocurren en la misma
+  // transacción, así que comparten producto y marca de tiempo exacta.
+  const clavesVentas = new Set(ventas.map(v => `${v.producto_id}|${v.created_at}`));
+  const tipoMovimientoStock = (m) => {
+    if (m.es_alta) return 'Alta';
+    return clavesVentas.has(`${m.producto_id}|${m.created_at}`) ? 'Venta' : 'Ajuste';
+  };
+  const movimientosStockFiltrados = movimientosStock.filter(m => {
+    const f = new Date(m.created_at);
+    const fecha = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+    if (filtroDesde && fecha < filtroDesde) return false;
+    if (filtroHasta && fecha > filtroHasta) return false;
+    if (!incluirVentasStock && tipoMovimientoStock(m) === 'Venta') return false;
+    if (busquedaHistorial) {
+      const b = busquedaHistorial.toLowerCase();
+      if (!m.nombre_producto?.toLowerCase().includes(b) && !nombreUsuario(m.usuario_id).toLowerCase().includes(b)) return false;
+    }
+    return true;
+  });
+
+  // Scroll infinito: al llegar al final se muestran 100 más de lo ya cargado y,
+  // cuando no queda nada por mostrar, se piden otros 100 al servidor.
+  // El observer se recrea en cada render para que, si el final sigue a la vista
+  // (lista corta por los filtros), siga cargando hasta llenar la pantalla.
+  useEffect(() => {
+    const el = finListaStock.current;
+    if (tabActivo !== 'stock' || !el) return;
+    const observer = new IntersectionObserver(([entrada]) => {
+      if (!entrada.isIntersecting) return;
+      if (movimientosStockFiltrados.length > limiteStock) setLimiteStock(l => l + 100);
+      else if (hayMasMovimientos) cargarMasMovimientosStock();
+    }, { rootMargin: '300px' });
+    observer.observe(el);
+    return () => observer.disconnect();
   });
 
   const totalVentasFiltradas = ventasFiltradas.reduce((sum, v) => sum + (parseFloat(v.precio_venta) * v.cantidad), 0);
@@ -477,7 +534,8 @@ const KioscoAdmin = () => {
     ...(!empleado ? [{ valor: 'inventario', label: 'Inventario' }] : []),
     { valor: 'modo-venta', label: 'Modo venta' },
     { valor: 'ventas', label: 'Ventas' },
-    { valor: 'historial', label: 'Historial' }
+    { valor: 'historial', label: 'Historial' },
+    ...(!empleado ? [{ valor: 'egresos', label: 'Egresos' }, { valor: 'stock', label: 'Stock' }] : [])
   ];
 
   const stockColor = (stock) => {
@@ -834,7 +892,7 @@ const KioscoAdmin = () => {
             </svg>
             <input
               type="text"
-              placeholder="Buscar producto en historial..."
+              placeholder="Buscar producto o vendedor..."
               value={busquedaHistorial}
               onChange={(e) => setBusquedaHistorial(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
@@ -988,6 +1046,9 @@ const KioscoAdmin = () => {
                     }`}>
                       {getNombrePago(venta.tipo_pago)}
                     </span>
+                    <span className="text-xs text-gray-500">
+                      Vendido por <span className="font-medium text-gray-700">{nombreUsuario(venta.vendido_por)}</span>
+                    </span>
                   </div>
                 </div>
                 <div className="ml-4">
@@ -1020,6 +1081,164 @@ const KioscoAdmin = () => {
           </div>
         </>
       )}
+    </>
+  );
+
+  const renderEgresos = () => (
+    <>
+      <div className="space-y-3 mb-6">
+        <input
+          type="text"
+          placeholder="Buscar por descripcion o quien lo registro..."
+          value={busquedaHistorial}
+          onChange={(e) => setBusquedaHistorial(e.target.value)}
+          className="w-full px-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+        />
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={filtroDesde}
+            onChange={(e) => setFiltroDesde(e.target.value)}
+            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+          />
+          <span className="text-xs text-gray-400">a</span>
+          <input
+            type="date"
+            value={filtroHasta}
+            onChange={(e) => setFiltroHasta(e.target.value)}
+            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+          />
+          {(filtroDesde || filtroHasta || busquedaHistorial) && (
+            <button
+              onClick={() => { setFiltroDesde(''); setFiltroHasta(''); setBusquedaHistorial(''); }}
+              className="px-4 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 transition-all"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {egresosFiltrados.length === 0 ? (
+        <div className="text-center py-20 bg-gray-50 rounded-2xl">
+          <p className="text-gray-400 text-sm">No hay egresos registrados con estos filtros</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            {egresosFiltrados.slice(0, limitHistorial).map((egreso) => (
+              <div key={egreso.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-gray-900 text-sm truncate">{egreso.descripcion}</h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className="text-xs text-gray-400">{formatearFechaHora(egreso.created_at)}</span>
+                    <span className="text-xs text-gray-500">
+                      Registrado por <span className="font-medium text-gray-700">{nombreUsuario(egreso.registrado_por)}</span>
+                    </span>
+                  </div>
+                </div>
+                <span className="ml-4 font-semibold text-red-600 text-sm">- S/ {parseFloat(egreso.monto).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+
+          {egresosFiltrados.length > limitHistorial && (
+            <button
+              onClick={() => setLimitHistorial(prev => prev + 50)}
+              className="mt-4 w-full py-3 bg-gray-50 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              Cargar mas ({egresosFiltrados.length - limitHistorial} restantes)
+            </button>
+          )}
+
+          <div className="mt-6 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
+            <span className="text-sm text-gray-300">
+              Total de egresos ({egresosFiltrados.length})
+            </span>
+            <span className="text-xl font-bold">S/ {totalEgresosFiltrados.toFixed(2)}</span>
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  const renderHistorialStock = () => (
+    <>
+      <div className="space-y-3 mb-6">
+        <input
+          type="text"
+          placeholder="Buscar por producto o quien hizo el cambio..."
+          value={busquedaHistorial}
+          onChange={(e) => setBusquedaHistorial(e.target.value)}
+          className="w-full px-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+        />
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={filtroDesde}
+            onChange={(e) => setFiltroDesde(e.target.value)}
+            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+          />
+          <span className="text-xs text-gray-400">a</span>
+          <input
+            type="date"
+            value={filtroHasta}
+            onChange={(e) => setFiltroHasta(e.target.value)}
+            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm text-gray-600">
+          <input type="checkbox" checked={incluirVentasStock} onChange={(e) => setIncluirVentasStock(e.target.checked)} className="w-4 h-4" />
+          Incluir descuentos por ventas
+        </label>
+      </div>
+
+      {movimientosStockFiltrados.length === 0 ? (
+        <div className="text-center py-20 bg-gray-50 rounded-2xl">
+          <p className="text-gray-400 text-sm">No hay movimientos de stock con estos filtros</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            {movimientosStockFiltrados.slice(0, limiteStock).map((m) => {
+              const tipo = tipoMovimientoStock(m);
+              return (
+                <div key={m.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-gray-900 text-sm truncate">{m.nombre_producto}</h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-xs text-gray-400">{formatearFechaHora(m.created_at)}</span>
+                      <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${
+                        tipo === 'Ajuste' ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : tipo === 'Alta' ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                            : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {tipo}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Por <span className="font-medium text-gray-700">{nombreUsuario(m.usuario_id)}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="ml-4 text-right">
+                    <p className={`font-semibold text-sm ${m.diferencia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {m.diferencia > 0 ? '+' : ''}{m.diferencia}
+                    </p>
+                    <p className="text-[11px] text-gray-400">{m.stock_anterior} → {m.stock_nuevo}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+        </>
+      )}
+
+      <div ref={finListaStock} className="py-6 text-center text-xs text-gray-400">
+        {movimientosStockFiltrados.length > limiteStock || hayMasMovimientos
+          ? 'Cargando mas movimientos...'
+          : movimientosStockFiltrados.length > 0 && 'Fin del historial'}
+      </div>
     </>
   );
 
@@ -1540,6 +1759,8 @@ const KioscoAdmin = () => {
         {tabActivo === 'modo-venta' && <ModoVenta onMensaje={mostrarMensaje} />}
         {tabActivo === 'ventas' && renderVentas()}
         {tabActivo === 'historial' && renderHistorial()}
+        {tabActivo === 'egresos' && !empleado && renderEgresos()}
+        {tabActivo === 'stock' && !empleado && renderHistorialStock()}
       </div>
 
       {/* Modales */}

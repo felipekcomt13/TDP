@@ -1,5 +1,7 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../services/supabase/client';
+
+const PAGINA_MOVIMIENTOS = 100;
 
 const KioscoContext = createContext();
 
@@ -17,11 +19,20 @@ export const KioscoProvider = ({ children }) => {
   const [egresosCaja, setEgresosCaja] = useState([]);
   const [loadingProductos, setLoadingProductos] = useState(true);
   const [loadingVentas, setLoadingVentas] = useState(true);
+  const [movimientosStock, setMovimientosStock] = useState([]);
+  const [hayMasMovimientos, setHayMasMovimientos] = useState(false);
+  const cargandoMovimientos = useRef(false);
+  const movimientosStockRef = useRef([]);
+  movimientosStockRef.current = movimientosStock;
+  // id de usuario -> nombre, para mostrar quién vendió o registró cada movimiento
+  const [nombresUsuarios, setNombresUsuarios] = useState({});
 
   useEffect(() => {
     cargarProductos();
     cargarVentas();
     cargarEgresosCaja();
+    cargarNombresUsuarios();
+    cargarMovimientosStock();
 
     const productosSubscription = supabase
       .channel('productos_kiosco_changes')
@@ -44,12 +55,60 @@ export const KioscoProvider = ({ children }) => {
       })
       .subscribe();
 
+    const stockSubscription = supabase
+      .channel('movimientos_stock_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'movimientos_stock' }, () => {
+        cargarMovimientosStock();
+      })
+      .subscribe();
+
     return () => {
+      stockSubscription.unsubscribe();
       productosSubscription.unsubscribe();
       ventasSubscription.unsubscribe();
       egresosSubscription.unsubscribe();
     };
   }, []);
+
+  // --- USUARIOS (solo para etiquetar quién hizo cada movimiento) ---
+
+  const cargarNombresUsuarios = async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('id, nombre, email');
+      if (error) throw error;
+      setNombresUsuarios(Object.fromEntries((data || []).map(p => [p.id, p.nombre || p.email])));
+    } catch {
+      // Silenciado - RLS deniega para no-admins
+    }
+  };
+
+  const nombreUsuario = (id) => (id ? nombresUsuarios[id] || 'Usuario eliminado' : 'Sin registro');
+
+  // El historial de stock crece sin parar, así que se pide por páginas de 100.
+  // `reiniciar` vuelve a la primera página (lo usa el realtime); sin él trae la siguiente.
+  const cargarMovimientosStock = async (reiniciar = true) => {
+    if (cargandoMovimientos.current) return;
+    cargandoMovimientos.current = true;
+    try {
+      const desde = reiniciar ? 0 : movimientosStockRef.current.length;
+      const { data, error } = await supabase
+        .from('movimientos_stock')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(desde, desde + PAGINA_MOVIMIENTOS - 1);
+      if (error) throw error;
+      const pagina = data || [];
+      setHayMasMovimientos(pagina.length === PAGINA_MOVIMIENTOS);
+      setMovimientosStock(prev => (reiniciar ? pagina : [...prev, ...pagina]));
+    } catch {
+      // Silenciado - RLS deniega para no-admins o la migración aún no se aplicó
+      setHayMasMovimientos(false);
+    } finally {
+      cargandoMovimientos.current = false;
+    }
+  };
+
+  const cargarMasMovimientosStock = () => cargarMovimientosStock(false);
 
   // --- PRODUCTOS ---
 
@@ -281,6 +340,10 @@ export const KioscoProvider = ({ children }) => {
     egresosCaja,
     loadingProductos,
     loadingVentas,
+    nombreUsuario,
+    movimientosStock,
+    hayMasMovimientos,
+    cargarMasMovimientosStock,
     cargarProductos,
     agregarProducto,
     editarProducto,
