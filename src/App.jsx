@@ -17,6 +17,7 @@ import GestionUsuarios from './pages/admin/GestionUsuarios';
 import GestionMembresias from './pages/admin/GestionMembresias';
 import GestionSociosComerciales from './pages/admin/GestionSociosComerciales';
 import KioscoAdmin from './pages/admin/KioscoAdmin';
+import MetricasAdmin from './pages/admin/MetricasAdmin';
 import CuentasAdmin from './pages/admin/CuentasAdmin';
 import AjustesAdmin from './pages/admin/AjustesAdmin';
 import ReclamacionesAdmin from './pages/admin/ReclamacionesAdmin';
@@ -92,6 +93,14 @@ function App() {
               element={
                 <ProtectedRoute requireAdmin={true}>
                   <AppLayout><KioscoAdmin /></AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/metricas"
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AppLayout><MetricasAdmin /></AppLayout>
                 </ProtectedRoute>
               }
             />
