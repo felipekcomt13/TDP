@@ -410,24 +410,32 @@ const KioscoAdmin = () => {
     return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, '0')}-${String(h.getDate()).padStart(2, '0')}`;
   })();
 
-  const totalEfectivoHoy = ventas
-    .filter(v => {
-      if (v.tipo_pago !== 'efectivo') return false;
-      const f = new Date(v.created_at);
-      const fStr = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
-      return fStr === hoyStr;
-    })
-    .reduce((sum, v) => sum + parseFloat(v.precio_venta) * v.cantidad, 0);
+  const fechaLocal = (iso) => {
+    const f = new Date(iso);
+    return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+  };
 
-  const egresosHoy = egresosCaja.filter(e => {
-    const f = new Date(e.created_at);
-    const fStr = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
-    return fStr === hoyStr;
-  });
-
-  const totalEgresosHoy = egresosHoy.reduce((sum, e) => sum + parseFloat(e.monto), 0);
+  // La caja arrastra su saldo de un día a otro: lo que queda hoy es la apertura
+  // de mañana. El saldo es el fondo inicial más todo el efectivo vendido menos
+  // todos los egresos desde la fecha en que se fijó ese fondo.
   const CAJA_INICIAL = 156.80;
-  const saldoCaja = CAJA_INICIAL + totalEfectivoHoy - totalEgresosHoy;
+  const CAJA_FECHA_INICIO = '2026-04-14';
+
+  const montoVenta = (v) => parseFloat(v.precio_venta) * v.cantidad;
+  const ventasEfectivo = ventas.filter(v => v.tipo_pago === 'efectivo' && fechaLocal(v.created_at) >= CAJA_FECHA_INICIO);
+  const egresosDesdeInicio = egresosCaja.filter(e => fechaLocal(e.created_at) >= CAJA_FECHA_INICIO);
+
+  const totalEfectivoHoy = ventasEfectivo
+    .filter(v => fechaLocal(v.created_at) === hoyStr)
+    .reduce((sum, v) => sum + montoVenta(v), 0);
+
+  const egresosHoy = egresosDesdeInicio.filter(e => fechaLocal(e.created_at) === hoyStr);
+  const totalEgresosHoy = egresosHoy.reduce((sum, e) => sum + parseFloat(e.monto), 0);
+
+  const saldoCaja = CAJA_INICIAL
+    + ventasEfectivo.reduce((sum, v) => sum + montoVenta(v), 0)
+    - egresosDesdeInicio.reduce((sum, e) => sum + parseFloat(e.monto), 0);
+  const aperturaCaja = saldoCaja - totalEfectivoHoy + totalEgresosHoy;
 
   const handleRegistrarEgreso = async () => {
     const monto = parseFloat(egresoForm.monto);
@@ -1425,6 +1433,7 @@ const KioscoAdmin = () => {
                   <p className={`text-2xl font-bold ${saldoCaja >= 0 ? 'text-white' : 'text-red-400'}`}>
                     S/ {saldoCaja.toFixed(2)}
                   </p>
+                  <p className="text-[11px] text-gray-500">Apertura S/ {aperturaCaja.toFixed(2)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
