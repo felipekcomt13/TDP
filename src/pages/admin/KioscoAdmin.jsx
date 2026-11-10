@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useKiosco } from '../../context/KioscoContext';
@@ -52,9 +52,7 @@ const KioscoAdmin = () => {
   const [filtroDesde, setFiltroDesde] = useState('');
   const [filtroHasta, setFiltroHasta] = useState('');
   const [busquedaHistorial, setBusquedaHistorial] = useState('');
-  const [incluirVentasStock, setIncluirVentasStock] = useState(false);
-  const [limiteStock, setLimiteStock] = useState(100);
-  const finListaStock = useRef(null);
+  const [tipoHistorial, setTipoHistorial] = useState('todo');
   const [cantidadVenta, setCantidadVenta] = useState(1);
   const [limitHistorial, setLimitHistorial] = useState(50);
   const [archivoImagen, setArchivoImagen] = useState(null);
@@ -66,6 +64,8 @@ const KioscoAdmin = () => {
   const [modalEgreso, setModalEgreso] = useState(false);
   const [egresoForm, setEgresoForm] = useState({ monto: '', descripcion: '' });
   const [cajaExpandida, setCajaExpandida] = useState(false);
+  // Día que se consulta en las tarjetas de Plin/Yape/QR; vacío = hoy
+  const [fechaDigital, setFechaDigital] = useState('');
 
   useEffect(() => {
     if (!isAdmin()) {
@@ -386,7 +386,8 @@ const KioscoAdmin = () => {
     const fecha = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
     if (filtroDesde && fecha < filtroDesde) return false;
     if (filtroHasta && fecha > filtroHasta) return false;
-    if (!incluirVentasStock && tipoMovimientoStock(m) === 'Venta') return false;
+    // Las ventas ya aparecen como tal en el historial
+    if (tipoMovimientoStock(m) === 'Venta') return false;
     if (busquedaHistorial) {
       const b = busquedaHistorial.toLowerCase();
       if (!m.nombre_producto?.toLowerCase().includes(b) && !nombreUsuario(m.usuario_id).toLowerCase().includes(b)) return false;
@@ -394,25 +395,27 @@ const KioscoAdmin = () => {
     return true;
   });
 
-  // Scroll infinito: al llegar al final se muestran 100 más de lo ya cargado y,
-  // cuando no queda nada por mostrar, se piden otros 100 al servidor.
-  // El observer se recrea en cada render para que, si el final sigue a la vista
-  // (lista corta por los filtros), siga cargando hasta llenar la pantalla.
-  useEffect(() => {
-    const el = finListaStock.current;
-    if (tabActivo !== 'stock' || !el) return;
-    const observer = new IntersectionObserver(([entrada]) => {
-      if (!entrada.isIntersecting) return;
-      if (movimientosStockFiltrados.length > limiteStock) setLimiteStock(l => l + 100);
-      else if (hayMasMovimientos) cargarMasMovimientosStock();
-    }, { rootMargin: '300px' });
-    observer.observe(el);
-    return () => observer.disconnect();
-  });
-
   const totalVentasFiltradas = ventasFiltradas.reduce((sum, v) => sum + (parseFloat(v.precio_venta) * v.cantidad), 0);
 
-  const ventasPaginadas = ventasFiltradas.slice(0, limitHistorial);
+  // Historial unificado: ventas, egresos de caja y movimientos de stock en una
+  // sola lista por fecha. Los empleados solo ven ventas.
+  const mostrarVentas = tipoHistorial === 'todo' || tipoHistorial === 'venta';
+  const mostrarEgresos = !empleado && (tipoHistorial === 'todo' || tipoHistorial === 'egreso');
+  const mostrarStock = !empleado && (tipoHistorial === 'todo' || tipoHistorial === 'stock');
+
+  const entradasHistorial = [
+    ...(mostrarVentas ? ventasFiltradas.map(v => ({ tipo: 'venta', id: `v-${v.id}`, fecha: v.created_at, dato: v })) : []),
+    ...(mostrarEgresos ? egresosFiltrados.map(e => ({ tipo: 'egreso', id: `e-${e.id}`, fecha: e.created_at, dato: e })) : []),
+    ...(mostrarStock ? movimientosStockFiltrados.map(m => ({ tipo: 'stock', id: `s-${m.id}`, fecha: m.created_at, dato: m })) : [])
+  ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  const entradasPaginadas = entradasHistorial.slice(0, limitHistorial);
+  // Los movimientos de stock se piden al servidor por tandas
+  const hayMasHistorial = entradasHistorial.length > limitHistorial || (mostrarStock && hayMasMovimientos);
+  const cargarMasHistorial = () => {
+    setLimitHistorial(prev => prev + 50);
+    if (mostrarStock && hayMasMovimientos) cargarMasMovimientosStock();
+  };
 
   // Desglose por metodo de pago
   // (el monto de una línea pagada con varios métodos se reparte entre ellos)
@@ -493,6 +496,23 @@ const KioscoAdmin = () => {
     - egresosDesdeInicio.reduce((sum, e) => sum + parseFloat(e.monto), 0);
   const aperturaCaja = saldoCaja - totalEfectivoHoy + totalEgresosHoy;
 
+  // Plin, Yape y QR: lo cobrado por cada medio en un día (arrancan en 0 cada
+  // día). Los egresos de caja solo salen del efectivo.
+  const METODOS_DIGITALES = [
+    { tipo: 'plin', label: 'Plin', color: 'text-cyan-600', fondo: 'bg-cyan-50' },
+    { tipo: 'yape', label: 'Yape', color: 'text-purple-600', fondo: 'bg-purple-50' },
+    { tipo: 'qr', label: 'QR', color: 'text-amber-600', fondo: 'bg-amber-50' }
+  ];
+  const fechaVistaDigital = fechaDigital || hoyStr;
+  const totalesDigitales = { plin: 0, yape: 0, qr: 0 };
+  ventas
+    .filter(v => fechaLocal(v.created_at) === fechaVistaDigital)
+    .forEach(v => {
+      asignacionesPago(v, pagosPorTicket).forEach(a => {
+        if (a.tipo in totalesDigitales) totalesDigitales[a.tipo] += a.monto;
+      });
+    });
+
   const handleRegistrarEgreso = async () => {
     const monto = parseFloat(egresoForm.monto);
     if (isNaN(monto) || monto <= 0) {
@@ -534,7 +554,6 @@ const KioscoAdmin = () => {
     { valor: 'modo-venta', label: 'Modo venta' },
     { valor: 'ventas', label: 'Ventas' },
     { valor: 'historial', label: 'Historial' },
-    ...(!empleado ? [{ valor: 'egresos', label: 'Egresos' }, { valor: 'stock', label: 'Stock' }] : [])
   ];
 
   const stockColor = (stock) => {
@@ -891,7 +910,7 @@ const KioscoAdmin = () => {
             </svg>
             <input
               type="text"
-              placeholder="Buscar producto o vendedor..."
+              placeholder={empleado ? 'Buscar producto o vendedor...' : 'Buscar producto, descripcion o responsable...'}
               value={busquedaHistorial}
               onChange={(e) => setBusquedaHistorial(e.target.value)}
               className="w-full pl-11 pr-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
@@ -933,10 +952,31 @@ const KioscoAdmin = () => {
             className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
           />
         </div>
+        {/* Tipo de movimiento */}
+        {!empleado && (
+          <div className="flex flex-wrap gap-2">
+            {[
+              { valor: 'todo', label: 'Todo' },
+              { valor: 'venta', label: 'Ventas' },
+              { valor: 'egreso', label: 'Egresos' },
+              { valor: 'stock', label: 'Stock' }
+            ].map(t => (
+              <button
+                key={t.valor}
+                onClick={() => { setTipoHistorial(t.valor); setLimitHistorial(50); }}
+                className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                  tipoHistorial === t.valor ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Resumen semanal */}
-      {!hayFiltrosActivos && semanasOrdenadas.length > 0 && (() => {
+      {mostrarVentas && !hayFiltrosActivos && semanasOrdenadas.length > 0 && (() => {
         const semanasVisibles = verTodasSemanas ? semanasOrdenadas : semanasOrdenadas.slice(0, 4);
         const hayMas = semanasOrdenadas.length > 4;
         return (
@@ -984,7 +1024,7 @@ const KioscoAdmin = () => {
       })()}
 
       {/* Desglose por metodo de pago */}
-      {ventasFiltradas.length > 0 && Object.keys(desglosePago).length > 1 && (
+      {mostrarVentas && ventasFiltradas.length > 0 && Object.keys(desglosePago).length > 1 && (
         <div className="mb-6">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Por metodo de pago</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -1001,234 +1041,138 @@ const KioscoAdmin = () => {
         </div>
       )}
 
-      {/* Lista de ventas */}
-      {ventasFiltradas.length === 0 ? (
+      {/* Lista del historial: ventas, egresos y movimientos de stock */}
+      {entradasHistorial.length === 0 ? (
         <div className="text-center py-20 bg-gray-50 rounded-2xl">
           <svg className="w-14 h-14 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           <p className="text-gray-400 text-sm">
-            {hayFiltrosActivos ? 'No hay ventas con estos filtros' : 'No hay ventas registradas'}
+            {hayFiltrosActivos || tipoHistorial !== 'todo' ? 'No hay movimientos con estos filtros' : 'No hay movimientos registrados'}
           </p>
         </div>
       ) : (
         <>
           <div className="space-y-2">
-            {ventasPaginadas.map((venta) => (
-              <div
-                key={venta.id}
-                className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100"
-              >
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-sm truncate">{venta.nombre_producto}</h3>
-                  <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <span className="text-xs text-gray-400">
-                      {formatearFechaHora(venta.created_at)}
-                    </span>
-                    {venta.cantidad > 1 && (
-                      <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-500">
-                        x{venta.cantidad}
+            {entradasPaginadas.map((entrada) => {
+              const d = entrada.dato;
+
+              if (entrada.tipo === 'venta') {
+                return (
+                  <div key={entrada.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-sm truncate">{d.nombre_producto}</h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          Venta
+                        </span>
+                        <span className="text-xs text-gray-400">{formatearFechaHora(d.created_at)}</span>
+                        {d.cantidad > 1 && (
+                          <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-gray-100 text-gray-500">
+                            x{d.cantidad}
+                          </span>
+                        )}
+                        {(pagosPorTicket.get(d.ticket_id) || [{ tipo_pago: d.tipo_pago }]).map((pago) => (
+                          <span key={pago.tipo_pago} className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${badgePago(pago.tipo_pago)}`}>
+                            {getNombrePago(pago.tipo_pago)}
+                            {pago.monto != null && pagosPorTicket.get(d.ticket_id).length > 1 && ` S/ ${parseFloat(pago.monto).toFixed(2)}`}
+                          </span>
+                        ))}
+                        <span className="text-xs text-gray-500">
+                          Vendido por <span className="font-medium text-gray-700">{nombreUsuario(d.vendido_por)}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <span className="font-semibold text-gray-900 text-sm">
+                        S/ {(parseFloat(d.precio_venta) * d.cantidad).toFixed(2)}
                       </span>
-                    )}
-                    {(pagosPorTicket.get(venta.ticket_id) || [{ tipo_pago: venta.tipo_pago }]).map((pago) => (
-                      <span key={pago.tipo_pago} className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${badgePago(pago.tipo_pago)}`}>
-                        {getNombrePago(pago.tipo_pago)}
-                        {pago.monto != null && pagosPorTicket.get(venta.ticket_id).length > 1 && ` S/ ${parseFloat(pago.monto).toFixed(2)}`}
-                      </span>
-                    ))}
-                    <span className="text-xs text-gray-500">
-                      Vendido por <span className="font-medium text-gray-700">{nombreUsuario(venta.vendido_por)}</span>
-                    </span>
+                    </div>
                   </div>
-                </div>
-                <div className="ml-4">
-                  <span className="font-semibold text-gray-900 text-sm">
-                    S/ {(parseFloat(venta.precio_venta) * venta.cantidad).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              }
 
-          {/* Cargar mas */}
-          {ventasFiltradas.length > limitHistorial && (
-            <button
-              onClick={() => setLimitHistorial(prev => prev + 50)}
-              className="mt-4 w-full py-3 bg-gray-50 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors"
-            >
-              Cargar mas ({ventasFiltradas.length - limitHistorial} restantes)
-            </button>
-          )}
-
-          {/* Total */}
-          <div className="mt-6 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
-            <span className="text-sm text-gray-300">
-              Total{hayFiltrosActivos ? ' filtrado' : ' general'} ({ventasFiltradas.length} venta{ventasFiltradas.length !== 1 ? 's' : ''})
-            </span>
-            <span className="text-xl font-bold">
-              S/ {totalVentasFiltradas.toFixed(2)}
-            </span>
-          </div>
-        </>
-      )}
-    </>
-  );
-
-  const renderEgresos = () => (
-    <>
-      <div className="space-y-3 mb-6">
-        <input
-          type="text"
-          placeholder="Buscar por descripcion o quien lo registro..."
-          value={busquedaHistorial}
-          onChange={(e) => setBusquedaHistorial(e.target.value)}
-          className="w-full px-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
-        />
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={filtroDesde}
-            onChange={(e) => setFiltroDesde(e.target.value)}
-            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
-          />
-          <span className="text-xs text-gray-400">a</span>
-          <input
-            type="date"
-            value={filtroHasta}
-            onChange={(e) => setFiltroHasta(e.target.value)}
-            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
-          />
-          {(filtroDesde || filtroHasta || busquedaHistorial) && (
-            <button
-              onClick={() => { setFiltroDesde(''); setFiltroHasta(''); setBusquedaHistorial(''); }}
-              className="px-4 py-2 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 transition-all"
-            >
-              Limpiar
-            </button>
-          )}
-        </div>
-      </div>
-
-      {egresosFiltrados.length === 0 ? (
-        <div className="text-center py-20 bg-gray-50 rounded-2xl">
-          <p className="text-gray-400 text-sm">No hay egresos registrados con estos filtros</p>
-        </div>
-      ) : (
-        <>
-          <div className="space-y-2">
-            {egresosFiltrados.slice(0, limitHistorial).map((egreso) => (
-              <div key={egreso.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 text-sm truncate">{egreso.descripcion}</h3>
-                  <div className="flex flex-wrap items-center gap-2 mt-1">
-                    <span className="text-xs text-gray-400">{formatearFechaHora(egreso.created_at)}</span>
-                    <span className="text-xs text-gray-500">
-                      Registrado por <span className="font-medium text-gray-700">{nombreUsuario(egreso.registrado_por)}</span>
-                    </span>
+              if (entrada.tipo === 'egreso') {
+                return (
+                  <div key={entrada.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-sm truncate">{d.descripcion}</h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-red-50 text-red-600 border border-red-100">
+                          Egreso
+                        </span>
+                        <span className="text-xs text-gray-400">{formatearFechaHora(d.created_at)}</span>
+                        <span className="text-xs text-gray-500">
+                          Registrado por <span className="font-medium text-gray-700">{nombreUsuario(d.registrado_por)}</span>
+                        </span>
+                      </div>
+                    </div>
+                    <span className="ml-4 font-semibold text-red-600 text-sm">- S/ {parseFloat(d.monto).toFixed(2)}</span>
                   </div>
-                </div>
-                <span className="ml-4 font-semibold text-red-600 text-sm">- S/ {parseFloat(egreso.monto).toFixed(2)}</span>
-              </div>
-            ))}
-          </div>
+                );
+              }
 
-          {egresosFiltrados.length > limitHistorial && (
-            <button
-              onClick={() => setLimitHistorial(prev => prev + 50)}
-              className="mt-4 w-full py-3 bg-gray-50 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors"
-            >
-              Cargar mas ({egresosFiltrados.length - limitHistorial} restantes)
-            </button>
-          )}
-
-          <div className="mt-6 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
-            <span className="text-sm text-gray-300">
-              Total de egresos ({egresosFiltrados.length})
-            </span>
-            <span className="text-xl font-bold">S/ {totalEgresosFiltrados.toFixed(2)}</span>
-          </div>
-        </>
-      )}
-    </>
-  );
-
-  const renderHistorialStock = () => (
-    <>
-      <div className="space-y-3 mb-6">
-        <input
-          type="text"
-          placeholder="Buscar por producto o quien hizo el cambio..."
-          value={busquedaHistorial}
-          onChange={(e) => setBusquedaHistorial(e.target.value)}
-          className="w-full px-4 py-2.5 bg-gray-50 border-0 rounded-xl text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
-        />
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={filtroDesde}
-            onChange={(e) => setFiltroDesde(e.target.value)}
-            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
-          />
-          <span className="text-xs text-gray-400">a</span>
-          <input
-            type="date"
-            value={filtroHasta}
-            onChange={(e) => setFiltroHasta(e.target.value)}
-            className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
-          />
-        </div>
-        <label className="flex items-center gap-2 text-sm text-gray-600">
-          <input type="checkbox" checked={incluirVentasStock} onChange={(e) => setIncluirVentasStock(e.target.checked)} className="w-4 h-4" />
-          Incluir descuentos por ventas
-        </label>
-      </div>
-
-      {movimientosStockFiltrados.length === 0 ? (
-        <div className="text-center py-20 bg-gray-50 rounded-2xl">
-          <p className="text-gray-400 text-sm">No hay movimientos de stock con estos filtros</p>
-        </div>
-      ) : (
-        <>
-          <div className="space-y-2">
-            {movimientosStockFiltrados.slice(0, limiteStock).map((m) => {
-              const tipo = tipoMovimientoStock(m);
+              const tipoStock = tipoMovimientoStock(d);
               return (
-                <div key={m.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
+                <div key={entrada.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 text-sm truncate">{m.nombre_producto}</h3>
+                    <h3 className="font-semibold text-gray-900 text-sm truncate">{d.nombre_producto}</h3>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
-                      <span className="text-xs text-gray-400">{formatearFechaHora(m.created_at)}</span>
                       <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${
-                        tipo === 'Ajuste' ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : tipo === 'Alta' ? 'bg-blue-50 text-blue-600 border border-blue-100'
-                            : 'bg-gray-100 text-gray-500'
+                        tipoStock === 'Alta'
+                          ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
-                        {tipo}
+                        {tipoStock === 'Alta' ? 'Stock · Alta' : 'Stock · Ajuste'}
                       </span>
+                      <span className="text-xs text-gray-400">{formatearFechaHora(d.created_at)}</span>
                       <span className="text-xs text-gray-500">
-                        Por <span className="font-medium text-gray-700">{nombreUsuario(m.usuario_id)}</span>
+                        Por <span className="font-medium text-gray-700">{nombreUsuario(d.usuario_id)}</span>
                       </span>
                     </div>
                   </div>
                   <div className="ml-4 text-right">
-                    <p className={`font-semibold text-sm ${m.diferencia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {m.diferencia > 0 ? '+' : ''}{m.diferencia}
+                    <p className={`font-semibold text-sm ${d.diferencia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {d.diferencia > 0 ? '+' : ''}{d.diferencia}
                     </p>
-                    <p className="text-[11px] text-gray-400">{m.stock_anterior} → {m.stock_nuevo}</p>
+                    <p className="text-[11px] text-gray-400">{d.stock_anterior} → {d.stock_nuevo}</p>
                   </div>
                 </div>
               );
             })}
           </div>
 
+          {/* Cargar mas */}
+          {hayMasHistorial && (
+            <button
+              onClick={cargarMasHistorial}
+              className="mt-4 w-full py-3 bg-gray-50 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              Cargar mas
+            </button>
+          )}
+
+          {/* Totales */}
+          {mostrarVentas && ventasFiltradas.length > 0 && (
+            <div className="mt-6 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
+              <span className="text-sm text-gray-300">
+                Total ventas{hayFiltrosActivos ? ' filtrado' : ' general'} ({ventasFiltradas.length} venta{ventasFiltradas.length !== 1 ? 's' : ''})
+              </span>
+              <span className="text-xl font-bold">
+                S/ {totalVentasFiltradas.toFixed(2)}
+              </span>
+            </div>
+          )}
+          {mostrarEgresos && egresosFiltrados.length > 0 && (
+            <div className="mt-3 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
+              <span className="text-sm text-gray-300">
+                Total egresos{hayFiltrosActivos ? ' filtrado' : ' general'} ({egresosFiltrados.length})
+              </span>
+              <span className="text-xl font-bold">S/ {totalEgresosFiltrados.toFixed(2)}</span>
+            </div>
+          )}
         </>
       )}
-
-      <div ref={finListaStock} className="py-6 text-center text-xs text-gray-400">
-        {movimientosStockFiltrados.length > limiteStock || hayMasMovimientos
-          ? 'Cargando mas movimientos...'
-          : movimientosStockFiltrados.length > 0 && 'Fin del historial'}
-      </div>
     </>
   );
 
@@ -1612,7 +1556,7 @@ const KioscoAdmin = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-[10px] text-gray-400 uppercase tracking-widest">Caja de hoy</p>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-widest">Efectivo en caja</p>
                   <p className={`text-2xl font-bold ${saldoCaja >= 0 ? 'text-white' : 'text-red-400'}`}>
                     S/ {saldoCaja.toFixed(2)}
                   </p>
@@ -1635,6 +1579,38 @@ const KioscoAdmin = () => {
                 </svg>
               </div>
             </div>
+          </div>
+
+          {/* Plin, Yape y QR */}
+          <div className="flex items-center justify-between gap-2 mt-3 mb-1.5">
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest">
+              {fechaVistaDigital === hoyStr ? 'Pagos digitales de hoy' : 'Pagos digitales del día'}
+            </p>
+            <div className="flex items-center gap-2">
+              {fechaVistaDigital !== hoyStr && (
+                <button
+                  onClick={() => setFechaDigital('')}
+                  className="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors"
+                >
+                  Ir a hoy
+                </button>
+              )}
+              <input
+                type="date"
+                value={fechaVistaDigital}
+                max={hoyStr}
+                onChange={(e) => setFechaDigital(e.target.value === hoyStr ? '' : e.target.value)}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1 text-gray-700 bg-white"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {METODOS_DIGITALES.map(m => (
+              <div key={m.tipo} className={`${m.fondo} rounded-xl p-3`}>
+                <p className={`text-[10px] uppercase tracking-widest font-semibold ${m.color}`}>{m.label}</p>
+                <p className="text-lg font-bold text-gray-900">S/ {totalesDigitales[m.tipo].toFixed(2)}</p>
+              </div>
+            ))}
           </div>
 
           {/* Detalle expandido */}
@@ -1723,8 +1699,6 @@ const KioscoAdmin = () => {
         {tabActivo === 'modo-venta' && <ModoVenta onMensaje={mostrarMensaje} />}
         {tabActivo === 'ventas' && renderVentas()}
         {tabActivo === 'historial' && renderHistorial()}
-        {tabActivo === 'egresos' && !empleado && renderEgresos()}
-        {tabActivo === 'stock' && !empleado && renderHistorialStock()}
       </div>
 
       {/* Modales */}
