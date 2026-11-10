@@ -53,6 +53,7 @@ const KioscoAdmin = () => {
   const [filtroHasta, setFiltroHasta] = useState('');
   const [busquedaHistorial, setBusquedaHistorial] = useState('');
   const [tipoHistorial, setTipoHistorial] = useState('todo');
+  const [metodoHistorial, setMetodoHistorial] = useState('todos');
   const [cantidadVenta, setCantidadVenta] = useState(1);
   const [limitHistorial, setLimitHistorial] = useState(50);
   const [archivoImagen, setArchivoImagen] = useState(null);
@@ -353,6 +354,8 @@ const KioscoAdmin = () => {
     const fechaLocal = `${fechaVenta.getFullYear()}-${String(fechaVenta.getMonth() + 1).padStart(2, '0')}-${String(fechaVenta.getDate()).padStart(2, '0')}`;
     if (filtroDesde && fechaLocal < filtroDesde) return false;
     if (filtroHasta && fechaLocal > filtroHasta) return false;
+    // Una venta mixta entra en el filtro de cada método con que se pagó
+    if (metodoHistorial !== 'todos' && !asignacionesPago(v, pagosPorTicket).some(a => a.tipo === metodoHistorial)) return false;
     if (busquedaHistorial) {
       const b = busquedaHistorial.toLowerCase();
       if (!v.nombre_producto?.toLowerCase().includes(b) && !nombreUsuario(v.vendido_por).toLowerCase().includes(b)) return false;
@@ -395,13 +398,21 @@ const KioscoAdmin = () => {
     return true;
   });
 
-  const totalVentasFiltradas = ventasFiltradas.reduce((sum, v) => sum + (parseFloat(v.precio_venta) * v.cantidad), 0);
+  // Con un método elegido, el total es solo lo cobrado por ese método
+  const totalVentasFiltradas = ventasFiltradas.reduce((sum, v) => {
+    if (metodoHistorial === 'todos') return sum + parseFloat(v.precio_venta) * v.cantidad;
+    return sum + asignacionesPago(v, pagosPorTicket)
+      .filter(a => a.tipo === metodoHistorial)
+      .reduce((s, a) => s + a.monto, 0);
+  }, 0);
 
   // Historial unificado: ventas, egresos de caja y movimientos de stock en una
   // sola lista por fecha. Los empleados solo ven ventas.
   const mostrarVentas = tipoHistorial === 'todo' || tipoHistorial === 'venta';
-  const mostrarEgresos = !empleado && (tipoHistorial === 'todo' || tipoHistorial === 'egreso');
-  const mostrarStock = !empleado && (tipoHistorial === 'todo' || tipoHistorial === 'stock');
+  // Egresos y stock no tienen método de pago: con uno elegido solo se ven ventas
+  const sinMetodo = metodoHistorial === 'todos';
+  const mostrarEgresos = !empleado && sinMetodo && (tipoHistorial === 'todo' || tipoHistorial === 'egreso');
+  const mostrarStock = !empleado && sinMetodo && (tipoHistorial === 'todo' || tipoHistorial === 'stock');
 
   const entradasHistorial = [
     ...(mostrarVentas ? ventasFiltradas.map(v => ({ tipo: 'venta', id: `v-${v.id}`, fecha: v.created_at, dato: v })) : []),
@@ -896,7 +907,7 @@ const KioscoAdmin = () => {
 
   // --- RENDER HISTORIAL ---
 
-  const hayFiltrosActivos = filtroDesde || filtroHasta || busquedaHistorial;
+  const hayFiltrosActivos = filtroDesde || filtroHasta || busquedaHistorial || metodoHistorial !== 'todos';
 
   const renderHistorial = () => (
     <>
@@ -929,7 +940,7 @@ const KioscoAdmin = () => {
           </button>
           {hayFiltrosActivos && (
             <button
-              onClick={() => { setFiltroDesde(''); setFiltroHasta(''); setBusquedaHistorial(''); setLimitHistorial(50); }}
+              onClick={() => { setFiltroDesde(''); setFiltroHasta(''); setBusquedaHistorial(''); setMetodoHistorial('todos'); setLimitHistorial(50); }}
               className="px-5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-200 active:scale-[0.98] transition-all"
             >
               Limpiar
@@ -951,6 +962,21 @@ const KioscoAdmin = () => {
             onChange={(e) => setFiltroHasta(e.target.value)}
             className="flex-1 px-3 py-2 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black/10 focus:bg-white transition-all"
           />
+        </div>
+        {/* Metodo de pago */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] text-gray-400 uppercase tracking-widest mr-1">Pago</span>
+          {[{ id: 'todos', nombre: 'Todos' }, ...METODOS_PAGO].map(m => (
+            <button
+              key={m.id}
+              onClick={() => { setMetodoHistorial(m.id); setLimitHistorial(50); }}
+              className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
+                metodoHistorial === m.id ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {m.nombre}
+            </button>
+          ))}
         </div>
         {/* Tipo de movimiento */}
         {!empleado && (
