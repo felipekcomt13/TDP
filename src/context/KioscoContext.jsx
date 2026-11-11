@@ -18,6 +18,7 @@ export const KioscoProvider = ({ children }) => {
   const [productos, setProductos] = useState([]);
   const [ventas, setVentas] = useState([]);
   const [egresosCaja, setEgresosCaja] = useState([]);
+  const [ingresosCaja, setIngresosCaja] = useState([]);
   const [loadingProductos, setLoadingProductos] = useState(true);
   const [loadingVentas, setLoadingVentas] = useState(true);
   const [pagosVenta, setPagosVenta] = useState([]);
@@ -33,6 +34,7 @@ export const KioscoProvider = ({ children }) => {
     cargarProductos();
     cargarVentas();
     cargarEgresosCaja();
+    cargarIngresosCaja();
     cargarNombresUsuarios();
     cargarMovimientosStock();
     cargarPagosVenta();
@@ -58,6 +60,13 @@ export const KioscoProvider = ({ children }) => {
       })
       .subscribe();
 
+    const ingresosSubscription = supabase
+      .channel('ingresos_caja_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingresos_caja' }, () => {
+        cargarIngresosCaja();
+      })
+      .subscribe();
+
     const pagosSubscription = supabase
       .channel('pagos_venta_kiosco_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_venta_kiosco' }, () => {
@@ -78,6 +87,7 @@ export const KioscoProvider = ({ children }) => {
       productosSubscription.unsubscribe();
       ventasSubscription.unsubscribe();
       egresosSubscription.unsubscribe();
+      ingresosSubscription.unsubscribe();
     };
   }, []);
 
@@ -361,12 +371,51 @@ export const KioscoProvider = ({ children }) => {
     await cargarEgresosCaja();
   };
 
+  // --- INGRESOS CAJA ---
+
+  const cargarIngresosCaja = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('ingresos_caja')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setIngresosCaja(data || []);
+    } catch {
+      // Silenciado
+    }
+  };
+
+  const registrarIngresoCaja = async (monto, descripcion) => {
+    const { data, error } = await supabase
+      .from('ingresos_caja')
+      .insert([{ monto, descripcion, registrado_por: (await supabase.auth.getUser()).data.user?.id }])
+      .select()
+      .single();
+
+    if (error) throw error;
+    await cargarIngresosCaja();
+    return data;
+  };
+
+  const eliminarIngresoCaja = async (id) => {
+    const { error } = await supabase
+      .from('ingresos_caja')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    await cargarIngresosCaja();
+  };
+
   const pagosPorTicket = useMemo(() => agruparPagosPorTicket(pagosVenta), [pagosVenta]);
 
   const value = {
     productos,
     ventas,
     egresosCaja,
+    ingresosCaja,
     loadingProductos,
     loadingVentas,
     nombreUsuario,
@@ -386,7 +435,9 @@ export const KioscoProvider = ({ children }) => {
     registrarVentaLote,
     cargarVentas,
     registrarEgresoCaja,
-    eliminarEgresoCaja
+    eliminarEgresoCaja,
+    registrarIngresoCaja,
+    eliminarIngresoCaja
   };
 
   return (
