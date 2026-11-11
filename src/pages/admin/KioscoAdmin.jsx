@@ -354,15 +354,17 @@ const KioscoAdmin = () => {
     );
   });
 
-  // Rango de fechas y, opcionalmente, franja horaria diaria (HH:MM)
+  // Rango de fechas con hora de inicio (primer día) y hora de fin (último día)
   const enRangoHistorial = (iso) => {
     const f = new Date(iso);
     const fecha = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
     if (filtroDesde && fecha < filtroDesde) return false;
     if (filtroHasta && fecha > filtroHasta) return false;
     const hora = `${String(f.getHours()).padStart(2, '0')}:${String(f.getMinutes()).padStart(2, '0')}`;
-    if (horaDesde && hora < horaDesde) return false;
-    if (horaHasta && hora > horaHasta) return false;
+    // Con fecha, la hora acota solo el primer día (desde) y el último (hasta);
+    // sin fecha, es una franja que se repite cada día.
+    if (horaDesde && (!filtroDesde || fecha === filtroDesde) && hora < horaDesde) return false;
+    if (horaHasta && (!filtroHasta || fecha === filtroHasta) && hora > horaHasta) return false;
     return true;
   };
 
@@ -934,6 +936,60 @@ const KioscoAdmin = () => {
     );
   };
 
+  // Exporta a Excel todo lo que cumple los filtros (no solo lo ya cargado en pantalla)
+  const exportarHistorialExcel = async () => {
+    const filas = entradasHistorial.map(({ tipo, dato: d, fecha }) => {
+      const f = new Date(fecha);
+      let nombre, etiqueta, monto, responsable;
+      if (tipo === 'venta') {
+        nombre = d.nombre_producto;
+        etiqueta = 'Venta';
+        responsable = d.vendido_por;
+        monto = metodoHistorial === 'todos'
+          ? parseFloat(d.precio_venta) * d.cantidad
+          : asignacionesPago(d, pagosPorTicket).filter(a => a.tipo === metodoHistorial).reduce((s, a) => s + a.monto, 0);
+      } else if (tipo === 'ingreso') {
+        nombre = d.descripcion;
+        etiqueta = 'Ingreso';
+        responsable = d.registrado_por;
+        monto = parseFloat(d.monto);
+      } else if (tipo === 'egreso') {
+        nombre = d.descripcion;
+        etiqueta = 'Egreso';
+        responsable = d.registrado_por;
+        monto = -parseFloat(d.monto);
+      } else {
+        nombre = d.nombre_producto;
+        etiqueta = `Stock · ${tipoMovimientoStock(d)}`;
+        responsable = d.usuario_id;
+        monto = null;
+      }
+      return [nombre, etiqueta, f.toLocaleDateString('es-PE'), f.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }), nombreUsuario(responsable), monto];
+    });
+
+    const { default: ExcelJS } = await import('exceljs');
+    const libro = new ExcelJS.Workbook();
+    const hoja = libro.addWorksheet('Historial');
+    hoja.columns = [
+      { header: 'Nombre', key: 'nombre', width: 40 },
+      { header: 'Tipo', key: 'tipo', width: 16 },
+      { header: 'Fecha', key: 'fecha', width: 12 },
+      { header: 'Hora', key: 'hora', width: 8 },
+      { header: 'Responsable', key: 'responsable', width: 24 },
+      { header: 'Monto (S/)', key: 'monto', width: 14, style: { numFmt: '0.00' } }
+    ];
+    hoja.getRow(1).font = { bold: true };
+    filas.forEach(fila => hoja.addRow(fila));
+
+    const buffer = await libro.xlsx.writeBuffer();
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `historial-kiosco-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // --- RENDER HISTORIAL ---
 
   const hayFiltrosActivos = filtroDesde || filtroHasta || horaDesde || horaHasta || busquedaHistorial || metodoHistorial !== 'todos';
@@ -966,6 +1022,13 @@ const KioscoAdmin = () => {
             className="px-5 py-2.5 bg-black text-white text-sm font-medium rounded-lg shadow-sm hover:shadow-md hover:bg-gray-800 active:scale-[0.98] transition-all"
           >
             Hoy
+          </button>
+          <button
+            onClick={exportarHistorialExcel}
+            disabled={entradasHistorial.length === 0}
+            className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-emerald-700 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Exportar Excel
           </button>
           {hayFiltrosActivos && (
             <button

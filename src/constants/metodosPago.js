@@ -6,12 +6,13 @@ export const METODOS_PAGO = [
   { id: 'qr', nombre: 'QR', clase: 'bg-blue-600 text-white border-blue-600', badge: 'bg-blue-50 text-blue-600 border border-blue-100' }
 ];
 
-// Las ventas antiguas pueden tener métodos que ya no se ofrecen (cuentas personales).
+// Las ventas antiguas pueden tener métodos que ya no se ofrecen (cuentas personales
+// retiradas del sistema): se muestran con un nombre genérico.
 const NOMBRES_ANTIGUOS = {
   mixto: 'Mixto',
-  tata: 'Cuenta Tata',
-  david: 'Cuenta David',
-  giancarlo: 'Cuenta Giancarlo'
+  tata: 'Crédito',
+  david: 'Crédito',
+  giancarlo: 'Crédito'
 };
 
 export const nombrePago = (id) =>
