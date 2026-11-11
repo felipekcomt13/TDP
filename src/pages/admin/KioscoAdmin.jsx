@@ -452,6 +452,7 @@ const KioscoAdmin = () => {
   // (el monto de una línea pagada con varios métodos se reparte entre ellos)
   const desglosePago = ventasFiltradas.reduce((acc, v) => {
     asignacionesPago(v, pagosPorTicket).forEach(({ tipo, monto }) => {
+      if (metodoHistorial !== 'todos' && tipo !== metodoHistorial) return;
       if (!acc[tipo]) acc[tipo] = { total: 0, cantidad: 0 };
       acc[tipo].total += monto;
       acc[tipo].cantidad += 1;
@@ -1095,7 +1096,7 @@ const KioscoAdmin = () => {
       })()}
 
       {/* Desglose por metodo de pago */}
-      {mostrarVentas && ventasFiltradas.length > 0 && Object.keys(desglosePago).length > 1 && (
+      {mostrarVentas && ventasFiltradas.length > 0 && (Object.keys(desglosePago).length > 1 || metodoHistorial !== 'todos') && (
         <div className="mb-6">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Por metodo de pago</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
