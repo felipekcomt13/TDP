@@ -57,6 +57,8 @@ export const KioscoProvider = ({ children }) => {
   const [loadingProductos, setLoadingProductos] = useState(true);
   const [loadingVentas, setLoadingVentas] = useState(true);
   const [pagosVenta, setPagosVenta] = useState([]);
+  const [edicionesPago, setEdicionesPago] = useState([]);
+  const [eliminacionesCaja, setEliminacionesCaja] = useState([]);
   const [movimientosStock, setMovimientosStock] = useState([]);
   const [hayMasMovimientos, setHayMasMovimientos] = useState(false);
   const cargandoMovimientos = useRef(false);
@@ -82,6 +84,22 @@ export const KioscoProvider = ({ children }) => {
     cargarNombresUsuarios();
     cargarMovimientosStock();
     cargarPagosVenta();
+    cargarEdicionesPago();
+    cargarEliminacionesCaja();
+
+    const eliminacionesSubscription = supabase
+      .channel('auditoria_eliminaciones_caja_changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'auditoria_eliminaciones_caja' }, () => {
+        cargarEliminacionesCaja();
+      })
+      .subscribe();
+
+    const edicionesSubscription = supabase
+      .channel('auditoria_pagos_venta_changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'auditoria_pagos_venta' }, () => {
+        cargarEdicionesPago();
+      })
+      .subscribe();
 
     const productosSubscription = supabase
       .channel('productos_kiosco_changes')
@@ -92,7 +110,11 @@ export const KioscoProvider = ({ children }) => {
 
     const ventasSubscription = supabase
       .channel('ventas_kiosco_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas_kiosco' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas_kiosco' }, (payload) => {
+        // Editar el pago de una venta antigua no la trae en la recarga incremental: se parchea aquí
+        if (payload.eventType === 'UPDATE') {
+          setVentas(prev => prev.map(v => (v.id === payload.new.id ? { ...v, ...payload.new } : v)));
+        }
         cargarVentas(false);
       })
       .subscribe();
@@ -115,7 +137,8 @@ export const KioscoProvider = ({ children }) => {
 
     const pagosSubscription = supabase
       .channel('pagos_venta_kiosco_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_venta_kiosco' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_venta_kiosco' }, (payload) => {
+        if (payload.eventType === 'DELETE') setPagosVenta(prev => prev.filter(p => p.id !== payload.old.id));
         cargarPagosVenta();
       })
       .subscribe();
@@ -128,6 +151,8 @@ export const KioscoProvider = ({ children }) => {
       .subscribe();
 
     return () => {
+      eliminacionesSubscription.unsubscribe();
+      edicionesSubscription.unsubscribe();
       pagosSubscription.unsubscribe();
       stockSubscription.unsubscribe();
       productosSubscription.unsubscribe();
@@ -349,6 +374,46 @@ export const KioscoProvider = ({ children }) => {
     return data;
   };
 
+  // Corrige cómo se pagó una venta ya registrada (ver migration-editar-pago-venta.sql).
+  // Se edita el ticket completo; pagos: [{ tipoPago, monto }] y la suma debe ser el total.
+  // La caja y los desgloses se recalculan solos porque salen de estos pagos.
+  const editarPagosVenta = async (ventaId, pagos) => {
+    const { data, error } = await supabase.rpc('editar_pagos_venta_kiosco', {
+      p_venta_id: ventaId,
+      p_pagos: pagos.map(p => ({ tipo_pago: p.tipoPago, monto: p.monto }))
+    });
+
+    if (error) throw error;
+    if (!data.success) throw new Error(data.error);
+
+    // La recarga incremental no ve cambios en filas antiguas: se actualiza el estado a mano
+    setPagosVenta(prev => [...prev.filter(p => p.ticket_id !== data.ticket_id), ...data.pagos]);
+    setVentas(prev => prev.map(v => {
+      const delTicket = v.id === ventaId || (v.ticket_id && v.ticket_id === data.ticket_id);
+      return delTicket ? { ...v, ticket_id: data.ticket_id, tipo_pago: data.tipo_pago } : v;
+    }));
+    await cargarEdicionesPago();
+    return data;
+  };
+
+  // Registro de ediciones de pago (solo lo ve el admin; para el resto RLS lo deja vacío)
+  const cargarEdicionesPago = async () => {
+    try {
+      await cargarTabla('auditoria_pagos_venta', setEdicionesPago);
+    } catch {
+      // Silenciado - RLS deniega para no-admins o la migración aún no se aplicó
+    }
+  };
+
+  // Ingresos y egresos de caja eliminados (solo admin; ver migration-auditoria-eliminaciones-caja.sql)
+  const cargarEliminacionesCaja = async () => {
+    try {
+      await cargarTabla('auditoria_eliminaciones_caja', setEliminacionesCaja);
+    } catch {
+      // Silenciado - RLS deniega para no-admins o la migración aún no se aplicó
+    }
+  };
+
   const cargarPagosVenta = async () => {
     try {
       await cargarTabla('pagos_venta_kiosco', setPagosVenta);
@@ -443,6 +508,8 @@ export const KioscoProvider = ({ children }) => {
     loadingVentas,
     nombreUsuario,
     pagosPorTicket,
+    edicionesPago,
+    eliminacionesCaja,
     movimientosStock,
     hayMasMovimientos,
     cargarMasMovimientosStock,
@@ -456,6 +523,7 @@ export const KioscoProvider = ({ children }) => {
     eliminarImagenProducto,
     registrarVenta,
     registrarVentaLote,
+    editarPagosVenta,
     cargarVentas,
     registrarEgresoCaja,
     eliminarEgresoCaja,

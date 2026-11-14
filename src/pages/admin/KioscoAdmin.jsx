@@ -5,6 +5,8 @@ import { useKiosco } from '../../context/KioscoContext';
 import { METODOS_PAGO, nombrePago, badgePago } from '../../constants/metodosPago';
 import { asignacionesPago } from '../../utils/pagosVenta';
 import ModoVenta from '../../components/kiosco/ModoVenta';
+import ModalEditarPago from '../../components/kiosco/ModalEditarPago';
+import AuditoriaKiosco from '../../components/kiosco/AuditoriaKiosco';
 
 const formInicial = {
   nombre: '',
@@ -38,15 +40,14 @@ const KioscoAdmin = () => {
     eliminarIngresoCaja,
     nombreUsuario,
     pagosPorTicket,
-    movimientosStock,
-    hayMasMovimientos,
-    cargarMasMovimientosStock
+    editarPagosVenta,
   } = useKiosco();
 
   const empleado = isEmpleado();
   const [tabActivo, setTabActivo] = useState(empleado ? 'ventas' : 'inventario');
   const [busqueda, setBusqueda] = useState('');
   const [mensaje, setMensaje] = useState(null);
+  const [ventaEditando, setVentaEditando] = useState(null);
   const [productoVendido, setProductoVendido] = useState(null);
   const [modalTipo, setModalTipo] = useState(null);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
@@ -57,7 +58,6 @@ const KioscoAdmin = () => {
   const [horaDesde, setHoraDesde] = useState('');
   const [horaHasta, setHoraHasta] = useState('');
   const [busquedaHistorial, setBusquedaHistorial] = useState('');
-  const [tipoHistorial, setTipoHistorial] = useState('todo');
   const [metodoHistorial, setMetodoHistorial] = useState('todos');
   const [cantidadVenta, setCantidadVenta] = useState(1);
   const [limitHistorial, setLimitHistorial] = useState(50);
@@ -381,45 +381,6 @@ const KioscoAdmin = () => {
     return true;
   });
 
-  // Historial de egresos de caja (quién, cuándo, cuánto y por qué)
-  const egresosFiltrados = egresosCaja.filter(e => {
-    if (!enRangoHistorial(e.created_at)) return false;
-    if (busquedaHistorial) {
-      const b = busquedaHistorial.toLowerCase();
-      if (!e.descripcion?.toLowerCase().includes(b) && !nombreUsuario(e.registrado_por).toLowerCase().includes(b)) return false;
-    }
-    return true;
-  });
-  const totalEgresosFiltrados = egresosFiltrados.reduce((sum, e) => sum + parseFloat(e.monto), 0);
-
-  const ingresosFiltrados = ingresosCaja.filter(i => {
-    if (!enRangoHistorial(i.created_at)) return false;
-    if (busquedaHistorial) {
-      const b = busquedaHistorial.toLowerCase();
-      if (!i.descripcion?.toLowerCase().includes(b) && !nombreUsuario(i.registrado_por).toLowerCase().includes(b)) return false;
-    }
-    return true;
-  });
-  const totalIngresosFiltrados = ingresosFiltrados.reduce((sum, i) => sum + parseFloat(i.monto), 0);
-
-  // Historial de stock. Una venta y su descuento de stock ocurren en la misma
-  // transacción, así que comparten producto y marca de tiempo exacta.
-  const clavesVentas = new Set(ventas.map(v => `${v.producto_id}|${v.created_at}`));
-  const tipoMovimientoStock = (m) => {
-    if (m.es_alta) return 'Alta';
-    return clavesVentas.has(`${m.producto_id}|${m.created_at}`) ? 'Venta' : 'Ajuste';
-  };
-  const movimientosStockFiltrados = movimientosStock.filter(m => {
-    if (!enRangoHistorial(m.created_at)) return false;
-    // Las ventas ya aparecen como tal en el historial
-    if (tipoMovimientoStock(m) === 'Venta') return false;
-    if (busquedaHistorial) {
-      const b = busquedaHistorial.toLowerCase();
-      if (!m.nombre_producto?.toLowerCase().includes(b) && !nombreUsuario(m.usuario_id).toLowerCase().includes(b)) return false;
-    }
-    return true;
-  });
-
   // Con un método elegido, el total es solo lo cobrado por ese método
   const totalVentasFiltradas = ventasFiltradas.reduce((sum, v) => {
     if (metodoHistorial === 'todos') return sum + parseFloat(v.precio_venta) * v.cantidad;
@@ -428,29 +389,11 @@ const KioscoAdmin = () => {
       .reduce((s, a) => s + a.monto, 0);
   }, 0);
 
-  // Historial unificado: ventas, egresos de caja y movimientos de stock en una
-  // sola lista por fecha. Los empleados solo ven ventas.
-  const mostrarVentas = tipoHistorial === 'todo' || tipoHistorial === 'venta';
-  // Egresos y stock no tienen método de pago: con uno elegido solo se ven ventas
-  const sinMetodo = metodoHistorial === 'todos';
-  const mostrarEgresos = !empleado && sinMetodo && (tipoHistorial === 'todo' || tipoHistorial === 'egreso');
-  const mostrarIngresos = !empleado && sinMetodo && (tipoHistorial === 'todo' || tipoHistorial === 'ingreso');
-  const mostrarStock = !empleado && sinMetodo && (tipoHistorial === 'todo' || tipoHistorial === 'stock');
-
-  const entradasHistorial = [
-    ...(mostrarVentas ? ventasFiltradas.map(v => ({ tipo: 'venta', id: `v-${v.id}`, fecha: v.created_at, dato: v })) : []),
-    ...(mostrarEgresos ? egresosFiltrados.map(e => ({ tipo: 'egreso', id: `e-${e.id}`, fecha: e.created_at, dato: e })) : []),
-    ...(mostrarIngresos ? ingresosFiltrados.map(i => ({ tipo: 'ingreso', id: `i-${i.id}`, fecha: i.created_at, dato: i })) : []),
-    ...(mostrarStock ? movimientosStockFiltrados.map(m => ({ tipo: 'stock', id: `s-${m.id}`, fecha: m.created_at, dato: m })) : [])
-  ].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
+  // El historial es solo de ventas. Ingresos, egresos y stock están en Auditoría.
+  const entradasHistorial = ventasFiltradas.map(v => ({ tipo: 'venta', id: `v-${v.id}`, fecha: v.created_at, dato: v }));
   const entradasPaginadas = entradasHistorial.slice(0, limitHistorial);
-  // Los movimientos de stock se piden al servidor por tandas
-  const hayMasHistorial = entradasHistorial.length > limitHistorial || (mostrarStock && hayMasMovimientos);
-  const cargarMasHistorial = () => {
-    setLimitHistorial(prev => prev + 50);
-    if (mostrarStock && hayMasMovimientos) cargarMasMovimientosStock();
-  };
+  const hayMasHistorial = entradasHistorial.length > limitHistorial;
+  const cargarMasHistorial = () => setLimitHistorial(prev => prev + 50);
 
   // Desglose por metodo de pago
   // (el monto de una línea pagada con varios métodos se reparte entre ellos)
@@ -644,6 +587,12 @@ const KioscoAdmin = () => {
     }
   };
 
+  const guardarPagoVenta = async (ventaId, pagos) => {
+    await editarPagosVenta(ventaId, pagos);
+    setVentaEditando(null);
+    mostrarMensaje('Método de pago actualizado', 'success');
+  };
+
   const formatearFechaHora = (fechaStr) => {
     const fecha = new Date(fechaStr);
     return fecha.toLocaleString('es-PE', {
@@ -662,6 +611,7 @@ const KioscoAdmin = () => {
     { valor: 'modo-venta', label: 'Modo venta' },
     { valor: 'ventas', label: 'Ventas' },
     { valor: 'historial', label: 'Historial' },
+    ...(!empleado ? [{ valor: 'auditoria', label: 'Auditoría' }] : []),
   ];
 
   const stockColor = (stock) => {
@@ -1004,33 +954,12 @@ const KioscoAdmin = () => {
 
   // Exporta a Excel todo lo que cumple los filtros (no solo lo ya cargado en pantalla)
   const exportarHistorialExcel = async () => {
-    const filas = entradasHistorial.map(({ tipo, dato: d, fecha }) => {
+    const filas = entradasHistorial.map(({ dato: d, fecha }) => {
       const f = new Date(fecha);
-      let nombre, etiqueta, monto, responsable;
-      if (tipo === 'venta') {
-        nombre = d.nombre_producto;
-        etiqueta = 'Venta';
-        responsable = d.vendido_por;
-        monto = metodoHistorial === 'todos'
-          ? parseFloat(d.precio_venta) * d.cantidad
-          : asignacionesPago(d, pagosPorTicket).filter(a => a.tipo === metodoHistorial).reduce((s, a) => s + a.monto, 0);
-      } else if (tipo === 'ingreso') {
-        nombre = d.descripcion;
-        etiqueta = 'Ingreso';
-        responsable = d.registrado_por;
-        monto = parseFloat(d.monto);
-      } else if (tipo === 'egreso') {
-        nombre = d.descripcion;
-        etiqueta = 'Egreso';
-        responsable = d.registrado_por;
-        monto = -parseFloat(d.monto);
-      } else {
-        nombre = d.nombre_producto;
-        etiqueta = `Stock · ${tipoMovimientoStock(d)}`;
-        responsable = d.usuario_id;
-        monto = null;
-      }
-      return [nombre, etiqueta, f.toLocaleDateString('es-PE'), f.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }), nombreUsuario(responsable), monto];
+      const monto = metodoHistorial === 'todos'
+        ? parseFloat(d.precio_venta) * d.cantidad
+        : asignacionesPago(d, pagosPorTicket).filter(a => a.tipo === metodoHistorial).reduce((s, a) => s + a.monto, 0);
+      return [d.nombre_producto, 'Venta', f.toLocaleDateString('es-PE'), f.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }), nombreUsuario(d.vendido_por), monto];
     });
 
     const { default: ExcelJS } = await import('exceljs');
@@ -1152,32 +1081,10 @@ const KioscoAdmin = () => {
             </button>
           ))}
         </div>
-        {/* Tipo de movimiento */}
-        {!empleado && (
-          <div className="flex flex-wrap gap-2">
-            {[
-              { valor: 'todo', label: 'Todo' },
-              { valor: 'venta', label: 'Ventas' },
-              { valor: 'ingreso', label: 'Ingresos' },
-              { valor: 'egreso', label: 'Egresos' },
-              { valor: 'stock', label: 'Stock' }
-            ].map(t => (
-              <button
-                key={t.valor}
-                onClick={() => { setTipoHistorial(t.valor); setLimitHistorial(50); }}
-                className={`px-4 py-1.5 text-xs font-medium rounded-full transition-all ${
-                  tipoHistorial === t.valor ? 'bg-black text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Resumen semanal */}
-      {mostrarVentas && !hayFiltrosActivos && semanasOrdenadas.length > 0 && (() => {
+      {!hayFiltrosActivos && semanasOrdenadas.length > 0 && (() => {
         const semanasVisibles = verTodasSemanas ? semanasOrdenadas : semanasOrdenadas.slice(0, 4);
         const hayMas = semanasOrdenadas.length > 4;
         return (
@@ -1225,7 +1132,7 @@ const KioscoAdmin = () => {
       })()}
 
       {/* Desglose por metodo de pago */}
-      {mostrarVentas && ventasFiltradas.length > 0 && Object.keys(desglosePago).length > 0 && (
+      {ventasFiltradas.length > 0 && Object.keys(desglosePago).length > 0 && (
         <div className="mb-6">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Por metodo de pago</h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -1249,7 +1156,7 @@ const KioscoAdmin = () => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
           </svg>
           <p className="text-gray-400 text-sm">
-            {hayFiltrosActivos || tipoHistorial !== 'todo' ? 'No hay movimientos con estos filtros' : 'No hay movimientos registrados'}
+            {hayFiltrosActivos ? 'No hay ventas con estos filtros' : 'No hay ventas registradas'}
           </p>
         </div>
       ) : (
@@ -1284,82 +1191,28 @@ const KioscoAdmin = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="ml-4">
+                    <div className="ml-4 flex items-center gap-2">
                       <span className="font-semibold text-gray-900 text-sm">
                         S/ {(parseFloat(d.precio_venta) * d.cantidad).toFixed(2)}
                       </span>
+                      {!empleado && (
+                        <button
+                          onClick={() => setVentaEditando(d)}
+                          title="Editar método de pago"
+                          aria-label="Editar método de pago"
+                          className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.5-6.5a2.5 2.5 0 113.536 3.536L12.5 16.5 8 18l1-5z" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
               }
 
-              if (entrada.tipo === 'ingreso') {
-                return (
-                  <div key={entrada.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-sm truncate">{d.descripcion}</h3>
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-teal-50 text-teal-700 border border-teal-100">
-                          Ingreso
-                        </span>
-                        <span className="text-xs text-gray-400">{formatearFechaHora(d.created_at)}</span>
-                        <span className="text-xs text-gray-500">
-                          Registrado por <span className="font-medium text-gray-700">{nombreUsuario(d.registrado_por)}</span>
-                        </span>
-                      </div>
-                    </div>
-                    <span className="ml-4 font-semibold text-emerald-600 text-sm">+ S/ {parseFloat(d.monto).toFixed(2)}</span>
-                  </div>
-                );
-              }
-
-              if (entrada.tipo === 'egreso') {
-                return (
-                  <div key={entrada.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 text-sm truncate">{d.descripcion}</h3>
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="px-2 py-0.5 text-[11px] font-medium rounded-full bg-red-50 text-red-600 border border-red-100">
-                          Egreso
-                        </span>
-                        <span className="text-xs text-gray-400">{formatearFechaHora(d.created_at)}</span>
-                        <span className="text-xs text-gray-500">
-                          Registrado por <span className="font-medium text-gray-700">{nombreUsuario(d.registrado_por)}</span>
-                        </span>
-                      </div>
-                    </div>
-                    <span className="ml-4 font-semibold text-red-600 text-sm">- S/ {parseFloat(d.monto).toFixed(2)}</span>
-                  </div>
-                );
-              }
-
-              const tipoStock = tipoMovimientoStock(d);
-              return (
-                <div key={entrada.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-gray-900 text-sm truncate">{d.nombre_producto}</h3>
-                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                      <span className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${
-                        tipoStock === 'Alta'
-                          ? 'bg-blue-50 text-blue-600 border border-blue-100'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}>
-                        {tipoStock === 'Alta' ? 'Stock · Alta' : 'Stock · Ajuste'}
-                      </span>
-                      <span className="text-xs text-gray-400">{formatearFechaHora(d.created_at)}</span>
-                      <span className="text-xs text-gray-500">
-                        Por <span className="font-medium text-gray-700">{nombreUsuario(d.usuario_id)}</span>
-                      </span>
-                    </div>
-                  </div>
-                  <div className="ml-4 text-right">
-                    <p className={`font-semibold text-sm ${d.diferencia > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {d.diferencia > 0 ? '+' : ''}{d.diferencia}
-                    </p>
-                    <p className="text-[11px] text-gray-400">{d.stock_anterior} → {d.stock_nuevo}</p>
-                  </div>
-                </div>
-              );
+              return null;
             })}
           </div>
 
@@ -1374,7 +1227,7 @@ const KioscoAdmin = () => {
           )}
 
           {/* Totales */}
-          {mostrarVentas && ventasFiltradas.length > 0 && (
+          {ventasFiltradas.length > 0 && (
             <div className="mt-6 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
               <span className="text-sm text-gray-300">
                 Total ventas{hayFiltrosActivos ? ' filtrado' : ' general'} ({ventasFiltradas.length} venta{ventasFiltradas.length !== 1 ? 's' : ''})
@@ -1382,22 +1235,6 @@ const KioscoAdmin = () => {
               <span className="text-xl font-bold">
                 S/ {totalVentasFiltradas.toFixed(2)}
               </span>
-            </div>
-          )}
-          {mostrarIngresos && ingresosFiltrados.length > 0 && (
-            <div className="mt-3 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
-              <span className="text-sm text-gray-300">
-                Total ingresos{hayFiltrosActivos ? ' filtrado' : ' general'} ({ingresosFiltrados.length})
-              </span>
-              <span className="text-xl font-bold">S/ {totalIngresosFiltrados.toFixed(2)}</span>
-            </div>
-          )}
-          {mostrarEgresos && egresosFiltrados.length > 0 && (
-            <div className="mt-3 bg-gray-900 text-white rounded-xl p-5 flex items-center justify-between">
-              <span className="text-sm text-gray-300">
-                Total egresos{hayFiltrosActivos ? ' filtrado' : ' general'} ({egresosFiltrados.length})
-              </span>
-              <span className="text-xl font-bold">S/ {totalEgresosFiltrados.toFixed(2)}</span>
             </div>
           )}
         </>
@@ -1742,6 +1579,16 @@ const KioscoAdmin = () => {
         );
       })()}
 
+      {ventaEditando && (
+        <ModalEditarPago
+          venta={ventaEditando}
+          ventas={ventas}
+          pagosPorTicket={pagosPorTicket}
+          onCerrar={() => setVentaEditando(null)}
+          onGuardar={guardarPagoVenta}
+        />
+      )}
+
       {/* Modal Registrar Ingreso / Egreso de caja */}
       {modalMovimiento && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -2066,6 +1913,7 @@ const KioscoAdmin = () => {
         {tabActivo === 'modo-venta' && <ModoVenta onMensaje={mostrarMensaje} />}
         {tabActivo === 'ventas' && renderVentas()}
         {tabActivo === 'historial' && renderHistorial()}
+        {tabActivo === 'auditoria' && !empleado && <AuditoriaKiosco />}
       </div>
 
       {/* Modales */}
