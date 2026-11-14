@@ -68,6 +68,8 @@ const KioscoAdmin = () => {
   const [filtroActivo, setFiltroActivo] = useState('activos');
   const [ventaPendiente, setVentaPendiente] = useState(null);
   const [modalMovimiento, setModalMovimiento] = useState(null);
+  const [modalDetalleCaja, setModalDetalleCaja] = useState(false);
+  const [fechaDetalleCaja, setFechaDetalleCaja] = useState('');
   const [movimientoForm, setMovimientoForm] = useState({ monto: '', descripcion: '' });
   const [cajaExpandida, setCajaExpandida] = useState(false);
   // Día que se consulta en las tarjetas de Plin/Yape/QR; vacío = hoy
@@ -504,19 +506,23 @@ const KioscoAdmin = () => {
   // La caja arrastra su saldo de un día a otro: lo que queda hoy es la apertura
   // de mañana. El saldo es el fondo inicial más todo el efectivo vendido menos
   // todos los egresos desde la fecha en que se fijó ese fondo.
-  const CAJA_INICIAL = 156.80;
-  const CAJA_FECHA_INICIO = '2026-04-14';
+  // Punto de partida: efectivo contado a mano en caja en ese instante. Solo se
+  // suman los movimientos registrados después de la hora exacta.
+  const CAJA_INICIAL = 162.30;
+  const CAJA_INICIO = new Date('2026-11-13T19:25:00-05:00');
+  const CAJA_FECHA_INICIO = fechaLocal(CAJA_INICIO);
+  const desdeInicioCaja = (iso) => new Date(iso) >= CAJA_INICIO;
 
   // Solo cuenta la parte pagada en efectivo (una venta puede mezclar métodos)
   const ventasEfectivo = ventas
-    .filter(v => fechaLocal(v.created_at) >= CAJA_FECHA_INICIO)
+    .filter(v => desdeInicioCaja(v.created_at))
     .map(v => ({
       created_at: v.created_at,
       monto: asignacionesPago(v, pagosPorTicket).filter(a => a.tipo === 'efectivo').reduce((sum, a) => sum + a.monto, 0)
     }))
     .filter(v => v.monto > 0);
   const montoVenta = (v) => v.monto;
-  const egresosDesdeInicio = egresosCaja.filter(e => fechaLocal(e.created_at) >= CAJA_FECHA_INICIO);
+  const egresosDesdeInicio = egresosCaja.filter(e => desdeInicioCaja(e.created_at));
 
   const totalEfectivoHoy = ventasEfectivo
     .filter(v => fechaLocal(v.created_at) === hoyStr)
@@ -526,7 +532,7 @@ const KioscoAdmin = () => {
   const totalEgresosHoy = egresosHoy.reduce((sum, e) => sum + parseFloat(e.monto), 0);
 
   // Ingresos manuales de efectivo (no son ventas): aportes, cambio, devoluciones
-  const ingresosDesdeInicio = ingresosCaja.filter(i => fechaLocal(i.created_at) >= CAJA_FECHA_INICIO);
+  const ingresosDesdeInicio = ingresosCaja.filter(i => desdeInicioCaja(i.created_at));
   const ingresosHoy = ingresosDesdeInicio.filter(i => fechaLocal(i.created_at) === hoyStr);
   const totalIngresosHoy = ingresosHoy.reduce((sum, i) => sum + parseFloat(i.monto), 0);
 
@@ -535,6 +541,66 @@ const KioscoAdmin = () => {
     + ingresosDesdeInicio.reduce((sum, i) => sum + parseFloat(i.monto), 0)
     - egresosDesdeInicio.reduce((sum, e) => sum + parseFloat(e.monto), 0);
   const aperturaCaja = saldoCaja - totalEfectivoHoy - totalIngresosHoy + totalEgresosHoy;
+
+  // Detalle de la caja de un día: apertura y cada movimiento con su saldo acumulado.
+  // Las ventas se agrupan por ticket; las que no entraron en efectivo salen con
+  // S/ 0.00 para poder ver si alguna quedó registrada con otro método.
+  const detalleCajaDia = (fecha) => {
+    const efectivoDe = (v) => asignacionesPago(v, pagosPorTicket)
+      .filter(a => a.tipo === 'efectivo').reduce((sum, a) => sum + a.monto, 0);
+
+    let saldo = CAJA_INICIAL;
+    ventas.forEach(v => {
+      const f = fechaLocal(v.created_at);
+      if (desdeInicioCaja(v.created_at) && f < fecha) saldo += efectivoDe(v);
+    });
+    ingresosCaja.forEach(i => {
+      const f = fechaLocal(i.created_at);
+      if (desdeInicioCaja(i.created_at) && f < fecha) saldo += parseFloat(i.monto);
+    });
+    egresosCaja.forEach(e => {
+      const f = fechaLocal(e.created_at);
+      if (desdeInicioCaja(e.created_at) && f < fecha) saldo -= parseFloat(e.monto);
+    });
+    const apertura = saldo;
+
+    const tickets = new Map();
+    ventas.filter(v => fechaLocal(v.created_at) === fecha && desdeInicioCaja(v.created_at)).forEach(v => {
+      const clave = v.ticket_id || `v-${v.id}`;
+      if (!tickets.has(clave)) tickets.set(clave, []);
+      tickets.get(clave).push(v);
+    });
+    const movimientos = [];
+    tickets.forEach((lineas, clave) => {
+      const efectivo = lineas.reduce((sum, v) => sum + efectivoDe(v), 0);
+      const total = lineas.reduce((sum, v) => sum + parseFloat(v.precio_venta) * v.cantidad, 0);
+      const otros = {};
+      lineas.forEach(v => asignacionesPago(v, pagosPorTicket).forEach(a => {
+        if (a.tipo !== 'efectivo') otros[a.tipo] = (otros[a.tipo] || 0) + a.monto;
+      }));
+      movimientos.push({
+        id: `t-${clave}`,
+        tipo: 'venta',
+        hora: lineas.reduce((min, v) => (v.created_at < min ? v.created_at : min), lineas[0].created_at),
+        nombre: lineas.map(v => (v.cantidad > 1 ? `${v.nombre_producto} x${v.cantidad}` : v.nombre_producto)).join(', '),
+        responsable: nombreUsuario(lineas[0].vendido_por),
+        monto: efectivo,
+        total,
+        otros
+      });
+    });
+    ingresosCaja.filter(i => fechaLocal(i.created_at) === fecha && desdeInicioCaja(i.created_at)).forEach(i => movimientos.push({
+      id: `i-${i.id}`, tipo: 'ingreso', hora: i.created_at, nombre: i.descripcion,
+      responsable: nombreUsuario(i.registrado_por), monto: parseFloat(i.monto)
+    }));
+    egresosCaja.filter(e => fechaLocal(e.created_at) === fecha && desdeInicioCaja(e.created_at)).forEach(e => movimientos.push({
+      id: `e-${e.id}`, tipo: 'egreso', hora: e.created_at, nombre: e.descripcion,
+      responsable: nombreUsuario(e.registrado_por), monto: -parseFloat(e.monto)
+    }));
+    movimientos.sort((a, b) => new Date(a.hora) - new Date(b.hora));
+    movimientos.forEach(m => { saldo += m.monto; m.saldo = saldo; });
+    return { apertura, movimientos, cierre: saldo };
+  };
 
   // Plin, Yape y QR: lo cobrado por cada medio en un día (arrancan en 0 cada
   // día). Los egresos de caja solo salen del efectivo.
@@ -1607,6 +1673,75 @@ const KioscoAdmin = () => {
         </div>
       )}
 
+      {/* Modal Detalle de caja */}
+      {modalDetalleCaja && (() => {
+        const fecha = fechaDetalleCaja || hoyStr;
+        const detalle = detalleCajaDia(fecha);
+        const hora = (iso) => new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+        return (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setModalDetalleCaja(false)}>
+            <div className="bg-white w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl animate-scaleIn" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 pb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Detalle de caja</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">Efectivo acumulado después de cada movimiento</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={fecha}
+                    max={hoyStr}
+                    min={CAJA_FECHA_INICIO}
+                    onChange={(e) => setFechaDetalleCaja(e.target.value === hoyStr ? '' : e.target.value)}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 text-gray-700 bg-white"
+                  />
+                  <button
+                    onClick={() => setModalDetalleCaja(false)}
+                    className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div className="px-6 pb-6 overflow-y-auto space-y-1.5">
+                <div className="flex items-center justify-between py-2 px-3 bg-gray-900 text-white rounded-lg">
+                  <span className="text-sm font-medium">Apertura</span>
+                  <span className="text-sm font-bold">S/ {detalle.apertura.toFixed(2)}</span>
+                </div>
+                {detalle.movimientos.length === 0 && (
+                  <p className="text-center text-sm text-gray-400 py-6">Sin movimientos este día</p>
+                )}
+                {detalle.movimientos.map(m => (
+                  <div key={m.id} className={`flex items-center justify-between gap-3 py-2 px-3 rounded-lg bg-gray-50 ${m.tipo === 'venta' && m.monto === 0 ? 'opacity-60' : ''}`}>
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-800 truncate">{m.nombre}</p>
+                      <p className="text-[11px] text-gray-400">
+                        {hora(m.hora)} · {m.tipo === 'venta' ? 'Venta' : m.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} · {m.responsable}
+                        {m.tipo === 'venta' && Object.keys(m.otros).length > 0 && (
+                          <span> · S/ {m.total.toFixed(2)} en total, resto: {Object.entries(m.otros).map(([t, monto]) => `${nombrePago(t)} ${monto.toFixed(2)}`).join(', ')}</span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-sm font-semibold ${m.monto < 0 ? 'text-red-600' : m.monto === 0 ? 'text-gray-400' : 'text-emerald-600'}`}>
+                        {m.monto < 0 ? '-' : '+'} S/ {Math.abs(m.monto).toFixed(2)}
+                      </p>
+                      <p className="text-[11px] text-gray-500">Caja: S/ {m.saldo.toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between py-2 px-3 bg-gray-900 text-white rounded-lg">
+                  <span className="text-sm font-medium">{fecha === hoyStr ? 'Saldo actual' : 'Saldo al cierre'}</span>
+                  <span className="text-sm font-bold">S/ {detalle.cierre.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Modal Registrar Ingreso / Egreso de caja */}
       {modalMovimiento && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1755,6 +1890,13 @@ const KioscoAdmin = () => {
               </div>
             </div>
           </div>
+
+          <button
+            onClick={() => { setFechaDetalleCaja(''); setModalDetalleCaja(true); }}
+            className="mt-2 w-full py-2 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Ver detalle de caja (cómo se suma cada monto)
+          </button>
 
           {/* Plin, Yape y QR */}
           <div className="flex items-center justify-between gap-2 mt-3 mb-1.5">

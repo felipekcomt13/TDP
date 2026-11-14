@@ -4,6 +4,24 @@ import { agruparPagosPorTicket } from '../utils/pagosVenta';
 
 const PAGINA_MOVIMIENTOS = 100;
 
+// Supabase devuelve como máximo 1000 filas por consulta. La caja suma todas las
+// ventas y egresos desde su inicio, así que se piden por páginas hasta traerlas todas.
+const TAMANO_PAGINA = 1000;
+const traerTodo = async (tabla) => {
+  const filas = [];
+  for (let desde = 0; ; desde += TAMANO_PAGINA) {
+    const { data, error } = await supabase
+      .from(tabla)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(desde, desde + TAMANO_PAGINA - 1);
+    if (error) throw error;
+    filas.push(...(data || []));
+    if (!data || data.length < TAMANO_PAGINA) return filas;
+  }
+};
+
 const KioscoContext = createContext();
 
 export const useKiosco = () => {
@@ -305,12 +323,8 @@ export const KioscoProvider = ({ children }) => {
 
   const cargarPagosVenta = async () => {
     try {
-      const { data, error } = await supabase
-        .from('pagos_venta_kiosco')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setPagosVenta(data || []);
+      const data = await traerTodo('pagos_venta_kiosco');
+      setPagosVenta(data);
     } catch {
       // Silenciado - RLS deniega para no-admins o la migración aún no se aplicó
     }
@@ -319,13 +333,8 @@ export const KioscoProvider = ({ children }) => {
   const cargarVentas = async (mostrarLoading = true) => {
     try {
       if (mostrarLoading) setLoadingVentas(true);
-      const { data, error } = await supabase
-        .from('ventas_kiosco')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setVentas(data || []);
+      const data = await traerTodo('ventas_kiosco');
+      setVentas(data);
     } catch {
       // Silenciado
     } finally {
@@ -337,13 +346,8 @@ export const KioscoProvider = ({ children }) => {
 
   const cargarEgresosCaja = async () => {
     try {
-      const { data, error } = await supabase
-        .from('egresos_caja')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setEgresosCaja(data || []);
+      const data = await traerTodo('egresos_caja');
+      setEgresosCaja(data);
     } catch {
       // Silenciado
     }
@@ -375,13 +379,8 @@ export const KioscoProvider = ({ children }) => {
 
   const cargarIngresosCaja = async () => {
     try {
-      const { data, error } = await supabase
-        .from('ingresos_caja')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setIngresosCaja(data || []);
+      const data = await traerTodo('ingresos_caja');
+      setIngresosCaja(data);
     } catch {
       // Silenciado
     }
