@@ -5,21 +5,38 @@ import { agruparPagosPorTicket } from '../utils/pagosVenta';
 const PAGINA_MOVIMIENTOS = 100;
 
 // Supabase devuelve como máximo 1000 filas por consulta. La caja suma todas las
-// ventas y egresos desde su inicio, así que se piden por páginas hasta traerlas todas.
+// ventas y egresos desde su inicio, así que la primera carga trae todas las páginas
+// (en paralelo). Las recargas posteriores solo piden las filas más recientes y se
+// fusionan con lo ya cargado, para no repetir miles de filas en cada venta.
 const TAMANO_PAGINA = 1000;
-const traerTodo = async (tabla) => {
-  const filas = [];
-  for (let desde = 0; ; desde += TAMANO_PAGINA) {
-    const { data, error } = await supabase
-      .from(tabla)
-      .select('*')
-      .order('created_at', { ascending: false })
-      .order('id', { ascending: false })
-      .range(desde, desde + TAMANO_PAGINA - 1);
-    if (error) throw error;
-    filas.push(...(data || []));
-    if (!data || data.length < TAMANO_PAGINA) return filas;
-  }
+const TAMANO_RECIENTES = 300;
+
+const pedirPagina = async (tabla, desde, cantidad) => {
+  const { data, error } = await supabase
+    .from(tabla)
+    .select('*')
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .range(desde, desde + cantidad - 1);
+  if (error) throw error;
+  return data || [];
+};
+
+const traerTodo = async (tabla, soloRecientes = false) => {
+  if (soloRecientes) return pedirPagina(tabla, 0, TAMANO_RECIENTES);
+  const { count, error } = await supabase.from(tabla).select('id', { count: 'exact', head: true });
+  if (error) throw error;
+  const paginas = Math.max(1, Math.ceil((count || 0) / TAMANO_PAGINA));
+  const resultados = await Promise.all(
+    Array.from({ length: paginas }, (_, i) => pedirPagina(tabla, i * TAMANO_PAGINA, TAMANO_PAGINA))
+  );
+  return resultados.flat();
+};
+
+const fusionar = (previas, nuevas) => {
+  const porId = new Map(previas.map(f => [f.id, f]));
+  nuevas.forEach(f => porId.set(f.id, f));
+  return [...porId.values()].sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0));
 };
 
 const KioscoContext = createContext();
@@ -43,6 +60,15 @@ export const KioscoProvider = ({ children }) => {
   const [movimientosStock, setMovimientosStock] = useState([]);
   const [hayMasMovimientos, setHayMasMovimientos] = useState(false);
   const cargandoMovimientos = useRef(false);
+  const cargadas = useRef({});
+
+  // Primera vez: todas las filas. Después: solo las recientes, fusionadas.
+  const cargarTabla = async (tabla, setter) => {
+    const incremental = !!cargadas.current[tabla];
+    const data = await traerTodo(tabla, incremental);
+    setter(prev => (incremental ? fusionar(prev, data) : data));
+    cargadas.current[tabla] = true;
+  };
   const movimientosStockRef = useRef([]);
   movimientosStockRef.current = movimientosStock;
   // id de usuario -> nombre, para mostrar quién vendió o registró cada movimiento
@@ -73,14 +99,16 @@ export const KioscoProvider = ({ children }) => {
 
     const egresosSubscription = supabase
       .channel('egresos_caja_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'egresos_caja' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'egresos_caja' }, (payload) => {
+        if (payload.eventType === 'DELETE') setEgresosCaja(prev => prev.filter(e => e.id !== payload.old.id));
         cargarEgresosCaja();
       })
       .subscribe();
 
     const ingresosSubscription = supabase
       .channel('ingresos_caja_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingresos_caja' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ingresos_caja' }, (payload) => {
+        if (payload.eventType === 'DELETE') setIngresosCaja(prev => prev.filter(i => i.id !== payload.old.id));
         cargarIngresosCaja();
       })
       .subscribe();
@@ -323,8 +351,7 @@ export const KioscoProvider = ({ children }) => {
 
   const cargarPagosVenta = async () => {
     try {
-      const data = await traerTodo('pagos_venta_kiosco');
-      setPagosVenta(data);
+      await cargarTabla('pagos_venta_kiosco', setPagosVenta);
     } catch {
       // Silenciado - RLS deniega para no-admins o la migración aún no se aplicó
     }
@@ -333,8 +360,7 @@ export const KioscoProvider = ({ children }) => {
   const cargarVentas = async (mostrarLoading = true) => {
     try {
       if (mostrarLoading) setLoadingVentas(true);
-      const data = await traerTodo('ventas_kiosco');
-      setVentas(data);
+      await cargarTabla('ventas_kiosco', setVentas);
     } catch {
       // Silenciado
     } finally {
@@ -346,8 +372,7 @@ export const KioscoProvider = ({ children }) => {
 
   const cargarEgresosCaja = async () => {
     try {
-      const data = await traerTodo('egresos_caja');
-      setEgresosCaja(data);
+      await cargarTabla('egresos_caja', setEgresosCaja);
     } catch {
       // Silenciado
     }
@@ -372,15 +397,14 @@ export const KioscoProvider = ({ children }) => {
       .eq('id', id);
 
     if (error) throw error;
-    await cargarEgresosCaja();
+    setEgresosCaja(prev => prev.filter(e => e.id !== id));
   };
 
   // --- INGRESOS CAJA ---
 
   const cargarIngresosCaja = async () => {
     try {
-      const data = await traerTodo('ingresos_caja');
-      setIngresosCaja(data);
+      await cargarTabla('ingresos_caja', setIngresosCaja);
     } catch {
       // Silenciado
     }
@@ -405,7 +429,7 @@ export const KioscoProvider = ({ children }) => {
       .eq('id', id);
 
     if (error) throw error;
-    await cargarIngresosCaja();
+    setIngresosCaja(prev => prev.filter(i => i.id !== id));
   };
 
   const pagosPorTicket = useMemo(() => agruparPagosPorTicket(pagosVenta), [pagosVenta]);
