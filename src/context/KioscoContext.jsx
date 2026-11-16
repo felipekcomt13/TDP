@@ -401,19 +401,21 @@ export const KioscoProvider = ({ children }) => {
     return data;
   };
 
-  // Marca o desmarca un pago como verificado (llegó a la cuenta). Ver migration-verificar-pagos.sql
-  const verificarPago = async (pagoId, verificado) => {
-    const { data, error } = await supabase.rpc('marcar_pago_verificado', {
-      p_pago_id: pagoId,
+  // Marca o desmarca el pago de una venta como verificado (llegó a la cuenta).
+  // Ver migration-verificar-venta-antigua.sql: sirve también para ventas sin filas de pagos.
+  const verificarPago = async (ventaId, tipoPago, verificado) => {
+    const { data, error } = await supabase.rpc('verificar_pago_venta_kiosco', {
+      p_venta_id: ventaId,
+      p_tipo_pago: tipoPago,
       p_verificado: verificado
     });
 
     if (error) throw error;
     if (!data.success) throw new Error(data.error);
 
-    setPagosVenta(prev => prev.map(p => (p.id === pagoId
-      ? { ...p, verificado: data.verificado, verificado_at: data.verificado_at }
-      : p)));
+    // Venta antigua: ahora tiene ticket propio; se reemplazan sus pagos con los nuevos
+    setVentas(prev => prev.map(v => (v.id === ventaId ? { ...v, ticket_id: data.ticket_id } : v)));
+    setPagosVenta(prev => [...prev.filter(p => p.ticket_id !== data.ticket_id), ...data.pagos]);
     return data;
   };
 

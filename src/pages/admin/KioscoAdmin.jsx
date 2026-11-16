@@ -595,9 +595,9 @@ const KioscoAdmin = () => {
     mostrarMensaje('Método de pago actualizado', 'success');
   };
 
-  const toggleVerificacionPago = async (pago) => {
+  const toggleVerificacionPago = async (venta, pago) => {
     try {
-      await verificarPago(pago.id, !pago.verificado);
+      await verificarPago(venta.id, pago.tipo_pago, !pago.verificado);
     } catch (err) {
       mostrarMensaje(err.message || 'No se pudo actualizar la verificación', 'error');
     }
@@ -1223,24 +1223,11 @@ const KioscoAdmin = () => {
                             );
                           }
 
-                          // Venta antigua sin filas de pagos: no hay pago propio que marcar
-                          if (!pago.id) {
-                            return (
-                              <span
-                                key={pago.tipo_pago}
-                                title="Venta sin desglose de pagos: no se puede verificar"
-                                className={`px-2 py-0.5 text-[11px] font-medium rounded-full opacity-50 ${badgePago(pago.tipo_pago)}`}
-                              >
-                                {texto}
-                              </span>
-                            );
-                          }
-
                           return (
                             <button
-                              key={pago.id}
+                              key={pago.id || pago.tipo_pago}
                               type="button"
-                              onClick={() => toggleVerificacionPago(pago)}
+                              onClick={() => toggleVerificacionPago(d, pago)}
                               aria-pressed={!!pago.verificado}
                               title={pago.verificado ? 'Verificado. Toca para desmarcar' : 'Toca para marcar como verificado'}
                               className={`px-2 py-0.5 text-[11px] font-medium rounded-full border transition-colors ${
