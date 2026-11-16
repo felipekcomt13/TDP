@@ -41,6 +41,7 @@ const KioscoAdmin = () => {
     nombreUsuario,
     pagosPorTicket,
     editarPagosVenta,
+    verificarPago,
   } = useKiosco();
 
   const empleado = isEmpleado();
@@ -61,6 +62,7 @@ const KioscoAdmin = () => {
   const [metodoHistorial, setMetodoHistorial] = useState('todos');
   const [cantidadVenta, setCantidadVenta] = useState(1);
   const [limitHistorial, setLimitHistorial] = useState(50);
+  const [modoVerificar, setModoVerificar] = useState(false);
   const [archivoImagen, setArchivoImagen] = useState(null);
   const [previewImagen, setPreviewImagen] = useState(null);
   const [draggedId, setDraggedId] = useState(null);
@@ -593,6 +595,14 @@ const KioscoAdmin = () => {
     mostrarMensaje('Método de pago actualizado', 'success');
   };
 
+  const toggleVerificacionPago = async (pago) => {
+    try {
+      await verificarPago(pago.id, !pago.verificado);
+    } catch (err) {
+      mostrarMensaje(err.message || 'No se pudo actualizar la verificación', 'error');
+    }
+  };
+
   const formatearFechaHora = (fechaStr) => {
     const fecha = new Date(fechaStr);
     return fecha.toLocaleString('es-PE', {
@@ -1081,6 +1091,23 @@ const KioscoAdmin = () => {
             </button>
           ))}
         </div>
+        {/* Modo verificar: marcar los pagos que ya llegaron a las cuentas */}
+        <div className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-xl">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-gray-900">Modo verificar</p>
+            <p className="text-[11px] text-gray-400">Toca un pago para marcarlo cuando llegue a la cuenta</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={modoVerificar}
+            aria-label="Modo verificar"
+            onClick={() => setModoVerificar(v => !v)}
+            className={`relative shrink-0 inline-flex h-6 w-11 items-center rounded-full transition-colors ${modoVerificar ? 'bg-emerald-600' : 'bg-gray-300'}`}
+          >
+            <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${modoVerificar ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
       </div>
 
       {/* Resumen semanal */}
@@ -1180,12 +1207,53 @@ const KioscoAdmin = () => {
                             x{d.cantidad}
                           </span>
                         )}
-                        {(pagosPorTicket.get(d.ticket_id) || [{ tipo_pago: d.tipo_pago }]).map((pago) => (
-                          <span key={pago.tipo_pago} className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${badgePago(pago.tipo_pago)}`}>
-                            {getNombrePago(pago.tipo_pago)}
-                            {pago.monto != null && pagosPorTicket.get(d.ticket_id).length > 1 && ` S/ ${parseFloat(pago.monto).toFixed(2)}`}
-                          </span>
-                        ))}
+                        {(pagosPorTicket.get(d.ticket_id) || [{ tipo_pago: d.tipo_pago }]).map((pago) => {
+                          const texto = (
+                            <>
+                              {getNombrePago(pago.tipo_pago)}
+                              {pago.monto != null && pagosPorTicket.get(d.ticket_id).length > 1 && ` S/ ${parseFloat(pago.monto).toFixed(2)}`}
+                            </>
+                          );
+
+                          if (!modoVerificar) {
+                            return (
+                              <span key={pago.tipo_pago} className={`px-2 py-0.5 text-[11px] font-medium rounded-full ${badgePago(pago.tipo_pago)}`}>
+                                {texto}
+                              </span>
+                            );
+                          }
+
+                          // Venta antigua sin filas de pagos: no hay pago propio que marcar
+                          if (!pago.id) {
+                            return (
+                              <span
+                                key={pago.tipo_pago}
+                                title="Venta sin desglose de pagos: no se puede verificar"
+                                className={`px-2 py-0.5 text-[11px] font-medium rounded-full opacity-50 ${badgePago(pago.tipo_pago)}`}
+                              >
+                                {texto}
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <button
+                              key={pago.id}
+                              type="button"
+                              onClick={() => toggleVerificacionPago(pago)}
+                              aria-pressed={!!pago.verificado}
+                              title={pago.verificado ? 'Verificado. Toca para desmarcar' : 'Toca para marcar como verificado'}
+                              className={`px-2 py-0.5 text-[11px] font-medium rounded-full border transition-colors ${
+                                pago.verificado
+                                  ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                                  : `${badgePago(pago.tipo_pago)} hover:ring-2 hover:ring-emerald-300`
+                              }`}
+                            >
+                              {pago.verificado && '✓ '}
+                              {texto}
+                            </button>
+                          );
+                        })}
                         <span className="text-xs text-gray-500">
                           Vendido por <span className="font-medium text-gray-700">{nombreUsuario(d.vendido_por)}</span>
                         </span>

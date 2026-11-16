@@ -138,6 +138,11 @@ export const KioscoProvider = ({ children }) => {
     const pagosSubscription = supabase
       .channel('pagos_venta_kiosco_changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pagos_venta_kiosco' }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          // Un pago verificado/desmarcado: la recarga incremental no ve filas antiguas, así que se aplica directo
+          setPagosVenta(prev => prev.map(p => (p.id === payload.new.id ? { ...p, ...payload.new } : p)));
+          return;
+        }
         if (payload.eventType === 'DELETE') setPagosVenta(prev => prev.filter(p => p.id !== payload.old.id));
         cargarPagosVenta();
       })
@@ -396,6 +401,22 @@ export const KioscoProvider = ({ children }) => {
     return data;
   };
 
+  // Marca o desmarca un pago como verificado (llegó a la cuenta). Ver migration-verificar-pagos.sql
+  const verificarPago = async (pagoId, verificado) => {
+    const { data, error } = await supabase.rpc('marcar_pago_verificado', {
+      p_pago_id: pagoId,
+      p_verificado: verificado
+    });
+
+    if (error) throw error;
+    if (!data.success) throw new Error(data.error);
+
+    setPagosVenta(prev => prev.map(p => (p.id === pagoId
+      ? { ...p, verificado: data.verificado, verificado_at: data.verificado_at }
+      : p)));
+    return data;
+  };
+
   // Registro de ediciones de pago (solo lo ve el admin; para el resto RLS lo deja vacío)
   const cargarEdicionesPago = async () => {
     try {
@@ -524,6 +545,7 @@ export const KioscoProvider = ({ children }) => {
     registrarVenta,
     registrarVentaLote,
     editarPagosVenta,
+    verificarPago,
     cargarVentas,
     registrarEgresoCaja,
     eliminarEgresoCaja,
